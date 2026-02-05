@@ -23,51 +23,65 @@ TrustLock solves the crowdfunding accountability problem. Instead of giving all 
 
 ---
 
-## How It Works
+## 🚀 How TrustLock Works: 4 Simple Steps
 
-### Simple 4-Step Process
+### **1️⃣ CREATE**
+As a creator, you **host a funding raise** by:
+- Setting your funding goal and timeline
+- Defining your project and milestones
+- Choosing accepted tokens (ETH or ERC20)
 
-```
-1. CREATE     →  2. FUND      →  3. BUILD & VOTE  →  4. RELEASE
-Creator makes    Contributors     Creator submits     Funds released
-campaign         donate funds    work, get votes     when approved
-```
+### **2️⃣ FUND**  
+Contributors **discover your raise** and:
+- Review your project details
+- Contribute using accepted tokens
+- Become voting stakeholders
 
-### Detailed Workflow
+### **3️⃣ BUILD & VOTE**
+You **build and submit milestones**:
+- Complete work and submit milestone claims
+- Contributors vote after verification
+- Democratic approval of progress
 
-#### **Phase 1: Campaign Creation**
-- Creator sets funding goal (e.g., 10 ETH)
-- Sets project duration (e.g., 30 weeks)
-- Chooses ETH or ERC20 token
-- 4-week funding window starts
-
-#### **Phase 2: Funding**
-- Contributors donate (minimum 0.001 ETH or ERC20 token)
-- Funds held in Treasury contract
-- Once goal reached → Campaign becomes ACTIVE
-- If deadline passes without goal → Refunds available
-
-#### **Phase 3: Milestone Execution**
-1. **Creator submits milestone** (5-25% of total funds)
-   - First milestone max 10%
-   - Must describe work completed
-   
-2. **Contributors vote** (7-day voting period)
-   - One wallet = one vote
-   - Need 25% participation minimum
-   - Need 51% approval to pass
-
-3. **Automatic outcome**
-   - ✅ **Approved:** Funds released (minus 2% fee)
-   - ❌ **Rejected:** Failure counter increases
-
-#### **Phase 4: Completion or Failure**
-- **Success:** All milestones approved, all funds released
-- **Failure:** 3 consecutive failures OR 5 total failures → Refunds enabled
+### **4️⃣ RELEASE or REFUND**
+Two possible outcomes:
+- ✅ **Vote Passes**: Percentage of funds released to you
+- ❌ **Vote Fails**: Failure counter increments
+  - **3 consecutive failures OR 5 total failures** = Campaign failed
+  - **Automatic refunds enabled** for all contributors
 
 ---
 
-## System Architecture
+## 📋 Detailed Mechanics
+
+### **Milestone Voting Rules**
+- **Creator submits milestone** (5-25% of total funds)
+  - First milestone max 10%
+  - Must describe work completed
+  
+- **Contributors vote** (7-day voting period)
+  - One wallet = one vote
+  - Need 25% participation minimum
+  - Need 51% approval to pass
+
+- **Automatic outcome**
+  - ✅ **Approved:** Funds released (minus 2% protocol fee)
+  - ❌ **Rejected:** Failure counter increases
+
+### **Campaign States**
+```
+FUNDING → ACTIVE → VOTING → ACTIVE/COMPLETED/FAILED
+```
+
+- **FUNDING**: 4-week window to reach goal
+- **ACTIVE**: Goal reached, milestones can be created
+- **VOTING**: Milestone voting in progress
+- **COMPLETED**: All milestones approved
+- **FAILED**: Too many failed milestones
+
+---
+
+## 🏗️ System Architecture
 
 ```
 ┌─────────────────────┐
@@ -132,56 +146,56 @@ campaign         donate funds    work, get votes     when approved
 
 ---
 
-## Example Scenarios
+## 🎭 Example Scenarios
 
-### ✅ Successful Campaign
-
-```
-Day 1:  Creator makes campaign - 10 ETH goal
-Day 5:  5 contributors each give 2 ETH
-        → Goal reached! Campaign becomes ACTIVE
-
-Week 2: Creator submits Milestone #1 (10%)
-        "Completed smart contracts"
-        → 7-day vote starts
-
-Week 3: 4/5 contributors vote YES (80% approval)
-        → Creator receives 1 ETH 
-
-Week 6: Milestone #2 (20%) approved
-        → Creator receives 2 ETH
-
-Week 10: Final milestone (70%) approved
-         → Creator receives remaining ETH except 2% fee
-         → 2% fee collected 
-         → Campaign COMPLETED
-```
-
-### ❌ Failed Campaign (No Funding)
+### ✅ **Successful Campaign**
 
 ```
-Day 1:  Creator makes campaign - 10 ETH goal
-Day 28: Only 3 ETH raised
-        → Deadline passes
-        → Campaign stuck in FUNDING state
+📅 Day 1:  Creator hosts raise - 10 ETH goal
+📅 Day 5:  Contributors discover and fund
+          5 contributors each give 2 ETH
+          → Goal reached! Campaign becomes ACTIVE
 
-Day 29: Contributors call claimRefund()
-        → Each gets 100% back
+📅 Week 2: Creator builds and submits Milestone #1 (10%)
+          "Completed smart contracts"
+          → Contributors vote after verification
+
+📅 Week 3: 4/5 contributors vote YES (80% approval)
+          → 10% of funds released to creator (1 ETH)
+
+📅 Week 6: Milestone #2 (20%) approved
+          → 20% of funds released to creator (2 ETH)
+
+📅 Week 10: Final milestone (70%) approved
+           → Remaining funds released (minus 2% protocol fee)
+           → Campaign COMPLETED
 ```
 
-### ❌ Failed Campaign (Bad Milestones)
+### ❌ **Failed Campaign (No Funding)**
 
 ```
-Week 1: Campaign funded (10 ETH)
-Week 2: Milestone #1 rejected (work was bad)
-Week 4: Milestone #2 rejected
-Week 6: Milestone #3 rejected
-        → 3 consecutive failures
-        → Campaign enters FAILED state
+📅 Day 1:  Creator hosts raise - 10 ETH goal
+📅 Day 28: Only 3 ETH raised
+          → Funding deadline passes
+          → Campaign failed to reach goal
 
-Week 7: Contributors claim refunds
-        → Get proportional amount back
-          (all 10 ETH since nothing released)
+📅 Day 29: Contributors claim refunds
+          → Each gets 100% back automatically
+```
+
+### ❌ **Failed Campaign (Bad Milestones)**
+
+```
+📅 Week 1: Campaign successfully funded (10 ETH)
+📅 Week 2: Creator submits milestone, contributors reject (work quality poor)
+📅 Week 4: Second milestone also rejected
+📅 Week 6: Third milestone rejected
+          → 3 consecutive failures reached!
+          → Campaign automatically enters FAILED state
+
+📅 Week 7: Contributors claim refunds
+          → Get proportional amount back
+          (100% since no funds were ever released)
 ```
 
 ---
