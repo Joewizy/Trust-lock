@@ -34,7 +34,7 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         uint32 consecutiveFailedMilestones;  
         uint32 totalFailedMilestones;        
         CampaignState state;       
-        bool acceptsETH;           
+        bool acceptsEth;           
     }
 
     // ============ STATE VARIABLES ============
@@ -66,17 +66,15 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
     error FundingGoalTooLow();
     error ProjectDurationTooLong();
     error MaxContributionExceeded(uint256 maxAllowed, uint256 attempted);
-    error NotCampaignCreator();
     error TokenNotAccepted();
     error InvalidCampaignState();
+    error CanOnlyContributeInFundingState();
     error FundingPeriodEnded();
     error FundingPeriodNotEnded();
     error ContributionTooLow();
     error CreatorCannotContribute();
     error FundingGoalExceeded(uint256 amountNeeded);
-    error NotOwner();
     error InvalidAddress();
-    error ContractPaused();
     error UnauthorizedContract();
     error CampaignNotFound();
 
@@ -86,14 +84,14 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         uint256 indexed campaignId,
         address indexed creator,
         uint256 fundingGoal,
-        bool acceptsETH
+        bool acceptsEth
     );
 
     event ContributionReceived(
         uint256 indexed campaignId,
         address indexed contributor,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     event CampaignFunded(
@@ -166,7 +164,7 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
      * @param _description Detailed description
      * @param _fundingGoal Target amount to raise
      * @param _projectDuration Time to complete all milestones
-     * @param _acceptsETH Whether to accept ETH or ERC20
+     * @param _acceptsEth Whether to accept ETH or ERC20
      * @param _acceptedToken Token address (if not accepting ETH)
      * @return campaignId The ID of the newly created campaign
      */
@@ -175,14 +173,15 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         string memory _description,
         uint256 _fundingGoal,
         uint256 _projectDuration,
-        bool _acceptsETH,
-        address _acceptedToken
+        bool _acceptsEth,
+        address _acceptedToken,
+        address _creator
     ) external whenNotPaused returns (uint256) {
         if (_fundingGoal < MINIMUM_CONTRIBUTION) revert FundingGoalTooLow();
         if (_projectDuration > PROJECT_MAX_DURATION) revert ProjectDurationTooLong();
 
         // Validate token acceptance by checking with Core contract
-        if (!_acceptsETH) {
+        if (!_acceptsEth) {
             if (_acceptedToken == address(0)) revert InvalidAddress();
             if (!ITrustLockCore(coreContract).isTokenAccepted(_acceptedToken)) {
                 revert TokenNotAccepted();
@@ -193,19 +192,19 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         uint256 campaignId = campaignCounter;
 
         Campaign storage campaign = campaigns[campaignId];
-        campaign.creator = msg.sender;
+        campaign.creator = _creator;
         campaign.fundingGoal = _fundingGoal;
         campaign.fundingDeadline = uint64(block.timestamp + FUNDING_DURATION);
         campaign.projectDuration = uint64(_projectDuration);
         campaign.createdAt = uint64(block.timestamp);
         campaign.state = CampaignState.FUNDING;
-        campaign.acceptsETH = _acceptsETH;
+        campaign.acceptsEth = _acceptsEth;
         campaign.acceptedToken = _acceptedToken;
         
         campaignTitles[campaignId] = _title;
         campaignDescriptions[campaignId] = _description;
 
-        emit CampaignCreated(campaignId, msg.sender, _fundingGoal, _acceptsETH);
+        emit CampaignCreated(campaignId, msg.sender, _fundingGoal, _acceptsEth);
 
         return campaignId;
     }
@@ -227,7 +226,7 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
     {
         Campaign storage campaign = campaigns[_campaignId];
         
-        if (campaign.state != CampaignState.FUNDING) revert InvalidCampaignState();
+        if (campaign.state != CampaignState.FUNDING) revert CanOnlyContributeInFundingState();
         if (block.timestamp > campaign.fundingDeadline) revert FundingPeriodEnded();
         if (campaign.creator == _contributor) revert CreatorCannotContribute();
         if (_amount < MINIMUM_CONTRIBUTION) revert ContributionTooLow();
@@ -253,7 +252,7 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         contributions[_campaignId][_contributor] += _amount;
         campaign.totalRaised += _amount;
 
-        emit ContributionReceived(_campaignId, _contributor, _amount, campaign.acceptsETH);
+        emit ContributionReceived(_campaignId, _contributor, _amount, campaign.acceptsEth);
 
         // Check if funding goal reached
         if (campaign.totalRaised == campaign.fundingGoal) {

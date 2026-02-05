@@ -15,7 +15,6 @@ contract TrustLockVoting is Pausable {
     // ============ TYPES ============
     
     enum MilestoneState {
-        PENDING,      // Created but voting not started
         VOTING,       // Active voting period
         APPROVED,     // Passed and funds released
         REJECTED      // Failed vote
@@ -145,11 +144,12 @@ contract TrustLockVoting is Pausable {
     
     /**
      * @notice Create a milestone for contributors to vote on
+     * @param _creator The address of the campaign creator
      * @param _campaignId The campaign ID
      * @param _description What was accomplished
      * @param _fundingPercentage Percentage of total funds to release (5-25%)
      */
-    function createMilestone(uint256 _campaignId, string memory _description, uint256 _fundingPercentage) 
+    function createMilestone(address _creator, uint256 _campaignId, string memory _description, uint256 _fundingPercentage) 
         external 
         whenNotPaused
         campaignExists(_campaignId) 
@@ -157,7 +157,7 @@ contract TrustLockVoting is Pausable {
         TrustLockCampaignManager manager = TrustLockCampaignManager(campaignManager);
         TrustLockCampaignManager.Campaign memory campaign = manager.getCampaign(_campaignId);
 
-        if (campaign.creator != msg.sender) revert NotCampaignCreator();
+        if (campaign.creator != _creator) revert NotCampaignCreator();
 
         if (campaign.state != TrustLockCampaignManager.CampaignState.ACTIVE) {
             revert CanOnlyCreateMilestoneInActiveState();
@@ -209,7 +209,7 @@ contract TrustLockVoting is Pausable {
      * @param _milestoneId The milestone ID
      * @param _support True to approve, false to reject
      */
-    function vote(uint256 _campaignId, uint256 _milestoneId, bool _support) 
+    function vote(address _voter, uint256 _campaignId, uint256 _milestoneId, bool _support) 
         external 
         whenNotPaused
         campaignExists(_campaignId) 
@@ -217,30 +217,31 @@ contract TrustLockVoting is Pausable {
         TrustLockCampaignManager manager = TrustLockCampaignManager(campaignManager);
         
         // Check if contributor
-        if (!manager.hasContributedToCampaign(_campaignId, msg.sender)) {
+        if (!manager.hasContributedToCampaign(_campaignId, _voter)) {
             revert NotAContributor();
         }
         
         Milestone storage milestone = milestones[_campaignId][_milestoneId];
 
         // Validations
-        if (hasVoted[_campaignId][_milestoneId][msg.sender]) revert AlreadyVoted();
+        if (hasVoted[_campaignId][_milestoneId][_voter]) revert AlreadyVoted();
         if (block.timestamp > milestone.voteStartTime + VOTING_DURATION) revert VotingEnded();
         if (milestone.state != MilestoneState.VOTING) {
             revert MilestoneNotInVotingPeriod();
         }
 
         // Record vote
-        hasVoted[_campaignId][_milestoneId][msg.sender] = true;
-        milestone.totalVotes = milestone.votesFor + milestone.votesAgainst;
+        hasVoted[_campaignId][_milestoneId][_voter] = true;
         
         if (_support) {
             milestone.votesFor++;
         } else {
             milestone.votesAgainst++;
         }
+        
+        milestone.totalVotes = milestone.votesFor + milestone.votesAgainst;
 
-        emit VoteCast(_campaignId, _milestoneId, msg.sender, _support);
+        emit VoteCast(_campaignId, _milestoneId, _voter, _support);
     }
 
     /**

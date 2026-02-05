@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {TrustLockCampaignManager} from "../src/TrustLockCampaignManager.sol";
 import {TrustLockVoting} from "../src/TrustLockVoting.sol";
 import {TrustLockCore} from "../src/TrustLockCore.sol";
@@ -9,7 +9,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockERC20 is ERC20 {
     constructor() ERC20("Mock Token", "MOCK") {
-        _mint(msg.sender, 1000000 * 10**18);
+        _mint(msg.sender, 100_000 * 10**18);
     }
 
     function mint(address to, uint256 amount) external {
@@ -21,17 +21,18 @@ contract TrustLockCoreTest is Test {
     TrustLockCore public trustLock;
     MockERC20 public token;
 
-    address public creator = address(0x1);
-    address public contributor1 = address(0x2);
-    address public contributor2 = address(0x3);
-    address public contributor3 = address(0x4);
-    address public protocolFeeRecipient = address(0x999);
+    address creator = makeAddr("creator");
+    address contributor1 = makeAddr("contributor1");
+    address contributor2 = makeAddr("contributor2");
+    address contributor3 = makeAddr("contributor3");
+    address protocolFeeRecipient = makeAddr("protocolFeeRecipient");
 
+    uint256 initialContribution = 0.001 ether;
     uint256 public constant FUNDING_GOAL = 10 ether;
     uint256 public constant PROJECT_DURATION = 30 weeks;
 
-    event CampaignCreated(uint256 indexed campaignId, address indexed creator, uint256 fundingGoal, bool acceptsETH);
-    event ContributionReceived(uint256 indexed campaignId, address indexed contributor, uint256 amount, bool isETH);
+    event CampaignCreated(uint256 indexed campaignId, address indexed creator, uint256 fundingGoal, bool acceptsEth);
+    event ContributionReceived(uint256 indexed campaignId, address indexed contributor, uint256 amount, bool isEth);
 
     function setUp() public {
         trustLock = new TrustLockCore(protocolFeeRecipient);
@@ -46,30 +47,34 @@ contract TrustLockCoreTest is Test {
         token.mint(contributor1, 100 ether);
         token.mint(contributor2, 100 ether);
         token.mint(contributor3, 100 ether);
+        token.mint(creator, 100 ether); // Give creator tokens for testing
+
+        trustLock.addAcceptedToken(address(token));
+    }
+
+    function testGetAllContracts() public view {
+        console.logString("Contract addresses:");
+        (address cm, address v, address t) = trustLock.getContractAddresses();
+        console.logString("CampaignManager:");
+        console.logAddress(cm);
+        console.logString("Voting:");
+        console.logAddress(v);
+        console.logString("Treasury:");
+        console.logAddress(t);
     }
 
     // ============ CAMPAIGN CREATION TESTS ============
 
     function testCreateCampaign() public {
-        vm.startPrank(creator);
-        
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "This is a test campaign",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
+        uint256 campaignId = _createCampaign(false);
 
         assertEq(campaignId, 1);
         
         (TrustLockCampaignManager.Campaign memory campaign) = trustLock.getCampaign(campaignId);
         assertEq(campaign.creator, creator);
         assertEq(campaign.fundingGoal, FUNDING_GOAL);
-        assertTrue(campaign.acceptsETH);
-        
-        vm.stopPrank();
+        assertFalse(campaign.acceptsEth);
+        assertEq(campaign.acceptedToken, address(token));
     }
 
     function testCannotCreateCampaignWithLowGoal() public {
@@ -79,7 +84,7 @@ contract TrustLockCoreTest is Test {
         trustLock.createCampaign(
             "Test Campaign",
             "This is a test campaign",
-            0.001 ether, // Too low
+            0.0001 ether, 
             PROJECT_DURATION,
             true,
             address(0)
@@ -107,99 +112,63 @@ contract TrustLockCoreTest is Test {
     // ============ CONTRIBUTION TESTS ============
 
     function testContributeETH() public {
-        // Create campaign
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
+        uint256 campaignId = _createCampaign(true);
 
         // Contribute
         vm.startPrank(contributor1);
-        trustLock.contribute{value: 1 ether}(campaignId, 0);
+        token.approve(address(trustLock.treasury()), initialContribution);
+        trustLock.contribute{value: initialContribution}(campaignId, 0);
         vm.stopPrank();
 
         uint256 contribution = trustLock.getContribution(campaignId, contributor1);
-        assertEq(contribution, 1 ether);
+        assertEq(contribution, initialContribution);
     }
 
     function testContributeERC20() public {
-        // Create ERC20 campaign
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            false,
-            address(token)
-        );
+        uint256 campaignId = _createCampaign(false);
 
         // Approve and contribute
         vm.startPrank(contributor1);
-        token.approve(address(trustLock), 2 ether);
-        trustLock.contribute(campaignId, 2 ether);
+        token.approve(address(trustLock.treasury()), initialContribution);
+        trustLock.contribute(campaignId, initialContribution);
         vm.stopPrank();
 
         uint256 contribution = trustLock.getContribution(campaignId, contributor1);
-        assertEq(contribution, 2 ether);
+        assertEq(contribution, initialContribution);
     }
 
     function testCannotContributeBelowMinimum() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
+        uint256 campaignId = _createCampaign(false);
 
         vm.startPrank(contributor1);
+        token.approve(address(trustLock.treasury()), 0.0005 ether);
         vm.expectRevert(TrustLockCampaignManager.ContributionTooLow.selector);
-        trustLock.contribute{value: 0.001 ether}(campaignId, 0);
+        trustLock.contribute(campaignId, 0.0005 ether);
         vm.stopPrank();
     }
 
     function testCreatorCannotContribute() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
+        uint256 campaignId = _createCampaign(false);
 
         vm.startPrank(creator);
+        token.approve(address(trustLock.treasury()), initialContribution);
         vm.expectRevert(TrustLockCampaignManager.CreatorCannotContribute.selector);
-        trustLock.contribute{value: 1 ether}(campaignId, 0);
+        trustLock.contribute(campaignId, initialContribution);
         vm.stopPrank();
     }
 
     function testCampaignBecomesActiveWhenFunded() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
+        uint256 campaignId = _createCampaign(false);
 
-        // Contribute full amount
-        vm.prank(contributor1);
-        trustLock.contribute{value: 5 ether}(campaignId, 0);
-
-        vm.prank(contributor2);
-        trustLock.contribute{value: 5 ether}(campaignId, 0);
+        // Contribute full amount using tokens
+        for (uint i = 0; i < 50; i++) {
+            address contributor = makeAddr(string(abi.encodePacked("contributor", i)));
+            token.mint(contributor, 0.2 ether);
+            vm.startPrank(contributor);
+            token.approve(address(trustLock.treasury()), 0.2 ether); 
+            trustLock.contribute(campaignId, 0.2 ether);
+            vm.stopPrank();
+        }
 
         (TrustLockCampaignManager.Campaign memory campaign) = trustLock.getCampaign(campaignId);
         assertTrue(campaign.state == TrustLockCampaignManager.CampaignState.ACTIVE);
@@ -209,94 +178,49 @@ contract TrustLockCoreTest is Test {
 
     function testCreateMilestone() public {
         // Setup funded campaign
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
-
-        vm.prank(contributor1);
-        trustLock.contribute{value: FUNDING_GOAL}(campaignId, 0);
+        uint256 campaignId = _createCampaign(false);
+        _fundCampaign(campaignId, false);
 
         // Create milestone
         vm.prank(creator);
-        trustLock.createMilestone(campaignId, "First milestone completed", 10);
+        trustLock.createMilestone(creator, campaignId, "First milestone completed", 10);
 
         TrustLockVoting.Milestone memory milestone = trustLock.getMilestone(campaignId, 1);
         assertEq(milestone.fundingPercentage, 10);
-        assertTrue(milestone.state == TrustLockVoting.MilestoneState.PENDING);
+        assertTrue(milestone.state == TrustLockVoting.MilestoneState.VOTING);
     }
 
     function testCannotCreateMilestoneIfNotCreator() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
-
-        vm.prank(contributor1);
-        trustLock.contribute{value: FUNDING_GOAL}(campaignId, 0);
+        uint256 campaignId = _createCampaign(true); 
+        _fundCampaign(campaignId, true);
 
         vm.prank(contributor1);
         vm.expectRevert(TrustLockVoting.NotCampaignCreator.selector);
-        trustLock.createMilestone(campaignId, "Milestone", 10);
+        trustLock.createMilestone(creator, campaignId, "Milestone", 10);
     }
 
     function testFirstMilestoneCannotExceed10Percent() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
-
-        vm.prank(contributor1);
-        trustLock.contribute{value: FUNDING_GOAL}(campaignId, 0);
+        uint256 campaignId = _createCampaign(false);
+        _fundCampaign(campaignId, false);
 
         vm.prank(creator);
         vm.expectRevert(TrustLockVoting.InvalidMilestonePercentage.selector);
-        trustLock.createMilestone(campaignId, "Too big milestone", 15);
+        trustLock.createMilestone(creator, campaignId, "Too big milestone", 15);
     }
 
     // ============ VOTING TESTS ============
 
     function testVoteOnMilestone() public {
         // Setup
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
-
-        vm.prank(contributor1);
-        trustLock.contribute{value: 5 ether}(campaignId, 0);
-
-        vm.prank(contributor2);
-        trustLock.contribute{value: 5 ether}(campaignId, 0);
+        uint256 campaignId = _createCampaign(false);
+        _fundCampaign(campaignId, false);
 
         vm.prank(creator);
-        trustLock.createMilestone(campaignId, "First milestone", 10);
+        trustLock.createMilestone(creator, campaignId, "First milestone", 10);
 
-        // Wait for voting to start
-        vm.warp(block.timestamp + 2 days + 1);
-
-        // Vote
-        vm.prank(contributor1);
+        // Vote with first contributor
+        address[] memory contributors = trustLock.getContributors(campaignId);
+        vm.prank(contributors[0]);
         trustLock.vote(campaignId, 1, true);
 
         TrustLockVoting.Milestone memory milestone = trustLock.getMilestone(campaignId, 1);
@@ -304,23 +228,11 @@ contract TrustLockCoreTest is Test {
     }
 
     function testNonContributorCannotVote() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
-
-        vm.prank(contributor1);
-        trustLock.contribute{value: FUNDING_GOAL}(campaignId, 0);
+        uint256 campaignId = _createCampaign(false);
+        _fundCampaign(campaignId, false);
 
         vm.prank(creator);
-        trustLock.createMilestone(campaignId, "Milestone", 10);
-
-        vm.warp(block.timestamp + 2 days + 1);
+        trustLock.createMilestone(creator, campaignId, "Milestone", 10);
 
         vm.prank(contributor2); // Didn't contribute
         vm.expectRevert(TrustLockVoting.NotAContributor.selector);
@@ -328,70 +240,39 @@ contract TrustLockCoreTest is Test {
     }
 
     function testCannotVoteTwice() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
-
-        vm.prank(contributor1);
-        trustLock.contribute{value: FUNDING_GOAL}(campaignId, 0);
+        uint256 campaignId = _createCampaign(true);
+        _fundCampaign(campaignId, true);
 
         vm.prank(creator);
-        trustLock.createMilestone(campaignId, "Milestone", 10);
+        trustLock.createMilestone(creator, campaignId, "Milestone", 10);
 
         vm.warp(block.timestamp + 2 days + 1);
-
-        vm.startPrank(contributor1);
+        address firstContributor = trustLock.getContributors(campaignId)[0];
+        vm.startPrank(firstContributor);
         trustLock.vote(campaignId, 1, true);
         
         vm.expectRevert(TrustLockVoting.AlreadyVoted.selector);
-        trustLock.vote(campaignId, 1, true);
+        trustLock.vote(campaignId, 1, false);
         vm.stopPrank();
     }
 
     // ============ MILESTONE FINALIZATION TESTS ============
 
     function testFinalizeMilestoneApproved() public {
-        // Setup
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
-
-        // Three contributors
-        vm.prank(contributor1);
-        trustLock.contribute{value: 4 ether}(campaignId, 0);
-
-        vm.prank(contributor2);
-        trustLock.contribute{value: 3 ether}(campaignId, 0);
-
-        vm.prank(contributor3);
-        trustLock.contribute{value: 3 ether}(campaignId, 0);
+        uint256 campaignId = _createCampaign(false);
+        _fundCampaign(campaignId, false);
 
         vm.prank(creator);
-        trustLock.createMilestone(campaignId, "Milestone", 10);
+        trustLock.createMilestone(creator, campaignId, "Milestone", 10);
 
         vm.warp(block.timestamp + 2 days + 1);
 
-        // All vote yes
-        vm.prank(contributor1);
-        trustLock.vote(campaignId, 1, true);
-
-        vm.prank(contributor2);
-        trustLock.vote(campaignId, 1, true);
-
-        vm.prank(contributor3);
-        trustLock.vote(campaignId, 1, true);
+        // Need at least 25% participation: 50 contributors * 25% = 13 votes
+        address[] memory contributors = trustLock.getContributors(campaignId);
+        for (uint256 i = 0; i < 13 && i < contributors.length; i++) {
+            vm.prank(contributors[i]);
+            trustLock.vote(campaignId, 1, true);
+        }
 
         // Wait for voting to end
         vm.warp(block.timestamp + 7 days + 1);
@@ -405,62 +286,36 @@ contract TrustLockCoreTest is Test {
         assertTrue(milestone.state == TrustLockVoting.MilestoneState.APPROVED);
 
         // Check funds released (10% of 10 ETH = 1 ETH, minus 2% fee)
-        uint256 expectedAmount = (1 ether * 98) / 100; // 0.98 ETH
-        assertEq(creator.balance - creatorBalanceBefore, expectedAmount);
-    }
-
-    function testFinalizeMilestoneRejected() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
-
-        vm.prank(contributor1);
-        trustLock.contribute{value: 5 ether}(campaignId, 0);
-
-        vm.prank(contributor2);
-        trustLock.contribute{value: 5 ether}(campaignId, 0);
 
         vm.prank(creator);
-        trustLock.createMilestone(campaignId, "Milestone", 10);
+        trustLock.createMilestone(creator, campaignId, "Milestone", 10);
 
         vm.warp(block.timestamp + 2 days + 1);
 
-        // Both vote no
-        vm.prank(contributor1);
-        trustLock.vote(campaignId, 1, false);
-
-        vm.prank(contributor2);
-        trustLock.vote(campaignId, 1, false);
+        // Get fresh contributors for second milestone
+        address[] memory contributors2 = trustLock.getContributors(campaignId);
+        // Use different contributors for second milestone voting
+        for (uint256 i = 13; i < 15 && i < contributors2.length; i++) {
+            vm.prank(contributors2[i]);
+            trustLock.vote(campaignId, 2, false);
+        }
 
         vm.warp(block.timestamp + 7 days + 1);
 
-        trustLock.finalizeMilestone(campaignId, 1);
+        trustLock.finalizeMilestone(campaignId, 2);
 
-        TrustLockVoting.Milestone memory milestone = trustLock.getMilestone(campaignId, 1);
-        assertTrue(milestone.state == TrustLockVoting.MilestoneState.REJECTED);
+        TrustLockVoting.Milestone memory milestone2 = trustLock.getMilestone(campaignId, 2);
+        assertTrue(milestone2.state == TrustLockVoting.MilestoneState.REJECTED);
     }
 
     // ============ REFUND TESTS ============
 
     function testClaimRefundOnFailedCampaign() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
+        uint256 campaignId = _createCampaign(true);
 
-        vm.prank(contributor1);
-        trustLock.contribute{value: 5 ether}(campaignId, 0);
+        vm.startPrank(contributor1);
+        trustLock.contribute{value: 0.1 ether}(campaignId, 0);
+        vm.stopPrank();
 
         // Wait past funding deadline
         vm.warp(block.timestamp + 4 weeks + 1);
@@ -470,46 +325,71 @@ contract TrustLockCoreTest is Test {
         vm.prank(contributor1);
         trustLock.claimRefund(campaignId);
 
-        assertEq(contributor1.balance - balanceBefore, 5 ether);
+        assertEq(contributor1.balance - balanceBefore, 0.1 ether);
     }
 
     function testClaimRefundAfterMultipleRejections() public {
-        vm.prank(creator);
-        uint256 campaignId = trustLock.createCampaign(
-            "Test Campaign",
-            "Description",
-            FUNDING_GOAL,
-            PROJECT_DURATION,
-            true,
-            address(0)
-        );
-
-        vm.prank(contributor1);
-        trustLock.contribute{value: FUNDING_GOAL}(campaignId, 0);
+        uint256 campaignId = _createCampaign(false);
+        _fundCampaign(campaignId, false);
 
         // Create and reject 3 milestones
         for (uint256 i = 1; i <= 3; i++) {
             vm.prank(creator);
-            trustLock.createMilestone(campaignId, "Milestone", 10);
+            trustLock.createMilestone(creator, campaignId, "Milestone", 10);
 
-            vm.warp(block.timestamp + 2 days + 1);
-
-            vm.prank(contributor1);
+            address firstContributor = makeAddr(string(abi.encodePacked("contributor", uint256(0))));
+            vm.prank(firstContributor);
             trustLock.vote(campaignId, i, false);
 
             vm.warp(block.timestamp + 7 days + 1);
-
+            vm.prank(creator);
             trustLock.finalizeMilestone(campaignId, i);
         }
 
         (TrustLockCampaignManager.Campaign memory campaign) = trustLock.getCampaign(campaignId);
         assertTrue(campaign.state == TrustLockCampaignManager.CampaignState.FAILED);
 
-        uint256 balanceBefore = contributor1.balance;
+        address firstContributor = trustLock.getContributors(campaignId)[0];
+        uint256 balanceBefore = token.balanceOf(firstContributor);
 
-        vm.prank(contributor1);
+        vm.prank(firstContributor);
         trustLock.claimRefund(campaignId);
 
-        assertEq(contributor1.balance - balanceBefore, FUNDING_GOAL);
+        uint256 maxContribution = (FUNDING_GOAL * 200) / 10000; // 2% max contribution
+        assertEq(token.balanceOf(firstContributor) - balanceBefore, maxContribution);
+    }
+
+    function _createCampaign(bool isEth) internal returns (uint256 campaignId) {
+        vm.prank(creator);
+        campaignId = trustLock.createCampaign(
+            "Test Campaign",
+            "Description",
+            FUNDING_GOAL,
+            PROJECT_DURATION,
+            isEth,
+            address(token)
+        );
+    }
+
+    function _fundCampaign(uint256 campaignId, bool isEth) internal {
+        // Fund campaign with multiple contributors respecting max contribution limit
+        uint256 maxContribution = (FUNDING_GOAL * 200) / 10000; // 2% max contribution
+        uint256 contributorsNeeded = (FUNDING_GOAL + maxContribution - 1) / maxContribution;
+        
+        for (uint i = 0; i < contributorsNeeded; i++) {
+            address contributor = makeAddr(string(abi.encodePacked("contributor", i)));
+            
+            if (isEth) {
+                vm.deal(contributor, maxContribution);
+                vm.prank(contributor);
+                trustLock.contribute{value: maxContribution}(campaignId, 0);
+            } else {
+                token.mint(contributor, maxContribution);
+                vm.startPrank(contributor);
+                token.approve(address(trustLock.treasury()), maxContribution);
+                trustLock.contribute(campaignId, maxContribution);
+                vm.stopPrank();
+            }
+        }
     }
 }

@@ -39,7 +39,7 @@ interface ITrustLockCore {
         uint32 milestoneCount;     // 4 bytes
         uint32 failedMilestones;   // 4 bytes
         CampaignState state;       // 1 byte
-        bool acceptsETH;           // 1 byte
+        bool acceptsEth;           // 1 byte
     }
 
     struct Milestone {
@@ -58,14 +58,14 @@ interface ITrustLockCore {
         uint256 indexed campaignId,
         address indexed creator,
         uint256 fundingGoal,
-        bool acceptsETH
+        bool acceptsEth
     );
 
     event ContributionReceived(
         uint256 indexed campaignId,
         address indexed contributor,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     event CampaignFunded(
@@ -102,7 +102,7 @@ interface ITrustLockCore {
     event FundsWithdrawn(
         uint256 indexed campaignId,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     event RefundIssued(
@@ -125,7 +125,7 @@ interface ITrustLockCore {
         string memory _description,
         uint256 _fundingGoal,
         uint256 _projectDuration,
-        bool _acceptsETH,
+        bool _acceptsEth,
         address _acceptedToken
     ) external returns (uint256);
 

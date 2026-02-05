@@ -151,7 +151,7 @@ contract TrustLockCore is Pausable, Ownable {
      * @param _description Detailed description
      * @param _fundingGoal Target amount to raise
      * @param _projectDuration Time to complete all milestones
-     * @param _acceptsETH Whether to accept ETH or ERC20
+     * @param _acceptsEth Whether to accept ETH or ERC20
      * @param _acceptedToken Token address (if not accepting ETH)
      * @return campaignId The ID of the newly created campaign
      */
@@ -160,7 +160,7 @@ contract TrustLockCore is Pausable, Ownable {
         string memory _description,
         uint256 _fundingGoal,
         uint256 _projectDuration,
-        bool _acceptsETH,
+        bool _acceptsEth,
         address _acceptedToken
     ) external whenNotPaused returns (uint256) {
         return campaignManager.createCampaign(
@@ -168,8 +168,9 @@ contract TrustLockCore is Pausable, Ownable {
             _description,
             _fundingGoal,
             _projectDuration,
-            _acceptsETH,
-            _acceptedToken
+            _acceptsEth,
+            _acceptedToken,
+            msg.sender
         );
     }
 
@@ -186,7 +187,7 @@ contract TrustLockCore is Pausable, Ownable {
         TrustLockCampaignManager.Campaign memory campaign;
         (campaign) = campaignManager.getCampaign(_campaignId);
         
-        if (campaign.acceptsETH) {
+        if (campaign.acceptsEth) {
             if (msg.value == 0) revert MustSendETH();
             if (_amount != 0) revert AmountMustBeZeroForETH();
 
@@ -216,11 +217,14 @@ contract TrustLockCore is Pausable, Ownable {
      * @param _fundingPercentage Percentage of total funds to release (5-25%)
      */
     function createMilestone(
+        address _creator,
         uint256 _campaignId,
         string memory _description,
         uint256 _fundingPercentage
     ) external whenNotPaused {
-        voting.createMilestone(_campaignId, _description, _fundingPercentage);
+        if (msg.sender != _creator) revert TrustLockVoting.NotCampaignCreator();
+        
+        voting.createMilestone(_creator, _campaignId, _description, _fundingPercentage);
     }
 
     /**
@@ -234,7 +238,7 @@ contract TrustLockCore is Pausable, Ownable {
         uint256 _milestoneId,
         bool _support
     ) external whenNotPaused {
-        voting.vote(_campaignId, _milestoneId, _support);
+        voting.vote(msg.sender, _campaignId, _milestoneId, _support);
     }
 
     /**
@@ -253,7 +257,7 @@ contract TrustLockCore is Pausable, Ownable {
      * @param _campaignId The campaign ID
      */
     function claimRefund(uint256 _campaignId) external whenNotPaused {
-        treasury.claimRefund(_campaignId);
+        treasury.claimRefund(_campaignId, msg.sender);
     }
 
     // ============ VIEW FUNCTIONS ============

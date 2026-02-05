@@ -56,21 +56,21 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
         address indexed creator,
         uint256 amount,
         uint256 milestoneId,
-        bool isETH
+        bool isEth
     );
 
     event ProtocolFeeCollected(
         uint256 indexed campaignId,
         address indexed recipient,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     event RefundIssued(
         uint256 indexed campaignId,
         address indexed contributor,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     // ============ MODIFIERS ============
@@ -138,7 +138,7 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
         manager.updateReleasedFunds(_campaignId, _amount);
 
         // Transfer full amount to creator (NO FEE DEDUCTION)
-        if (campaign.acceptsETH) {
+        if (campaign.acceptsEth) {
             if (address(this).balance < _amount) revert InsufficientEthBalance();
             (bool success, ) = payable(campaign.creator).call{value: _amount}("");
             if (!success) revert WithdrawalFailed();
@@ -183,7 +183,7 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
         totalProtocolFees += protocolFee;
 
         // Transfer protocol fee
-        if (campaign.acceptsETH) {
+        if (campaign.acceptsEth) {
             (bool success, ) = payable(protocolFeeRecipient).call{value: protocolFee}("");
             if (!success) revert WithdrawalFailed();
             
@@ -210,7 +210,7 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
         TrustLockCampaignManager manager = TrustLockCampaignManager(campaignManager);
         TrustLockCampaignManager.Campaign memory campaign = manager.getCampaign(_campaignId);
         
-        if (campaign.acceptsETH) {
+        if (campaign.acceptsEth) {
             revert CannotHandleETHContributions();
         }
         
@@ -222,7 +222,7 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
      * @param _campaignId The campaign ID
      * @dev Returns 100% of contribution since no fees were deducted
      */
-    function claimRefund(uint256 _campaignId) 
+    function claimRefund(uint256 _campaignId, address _contributor) 
         external 
         nonReentrant 
         whenNotPaused
@@ -230,21 +230,21 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
     {
         TrustLockCampaignManager.Campaign memory campaign = getCampaign(_campaignId);
         
-        if (refundClaimed[_campaignId][msg.sender]) revert RefundAlreadyClaimed();
+        if (refundClaimed[_campaignId][_contributor]) revert RefundAlreadyClaimed();
         
-        uint256 refundAmount = _calculateRefundAmount(_campaignId, msg.sender);
+        uint256 refundAmount = _calculateRefundAmount(_campaignId, _contributor);
         if (refundAmount == 0) revert NoRefundAvailable();
         
         // Mark as claimed and transfer
-        refundClaimed[_campaignId][msg.sender] = true;
-        emit RefundIssued(_campaignId, msg.sender, refundAmount, campaign.acceptsETH);
+        refundClaimed[_campaignId][_contributor] = true;
+        emit RefundIssued(_campaignId, _contributor, refundAmount, campaign.acceptsEth);
 
         // Transfer refund
-        if (campaign.acceptsETH) {
-            (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
+        if (campaign.acceptsEth) {
+            (bool success, ) = payable(_contributor).call{value: refundAmount}("");
             if (!success) revert WithdrawalFailed();
         } else {
-            IERC20(campaign.acceptedToken).safeTransfer(msg.sender, refundAmount);
+            IERC20(campaign.acceptedToken).safeTransfer(_contributor, refundAmount);
         }
     }
 

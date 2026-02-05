@@ -25,8 +25,9 @@ interface ITrustLock {
         string memory _description,
         uint256 _fundingGoal,
         uint256 _projectDuration,
-        bool _acceptsETH,
-        address _acceptedToken
+        bool _acceptsEth,
+        address _acceptedToken,
+        address _creator
     ) external returns (uint256);
 
     function contribute(uint256 _campaignId, uint256 _amount) external payable;
@@ -105,14 +106,14 @@ interface ITrustLock {
         uint256 indexed campaignId,
         address indexed creator,
         uint256 fundingGoal,
-        bool acceptsETH
+        bool acceptsEth
     );
 
     event ContributionReceived(
         uint256 indexed campaignId,
         address indexed contributor,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     event CampaignFunded(
@@ -150,20 +151,20 @@ interface ITrustLock {
         uint256 indexed campaignId,
         address indexed creator,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     event ProtocolFeeCollected(
         uint256 indexed campaignId,
         address indexed recipient,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     event RefundIssued(
         uint256 indexed campaignId,
         address indexed contributor,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 }

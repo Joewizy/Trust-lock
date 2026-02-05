@@ -9,21 +9,21 @@ interface ITrustLockTreasury {
         address indexed creator,
         uint256 amount,
         uint256 milestoneId,  // Track which milestone
-        bool isETH
+        bool isEth
     );
 
     event ProtocolFeeCollected(
         uint256 indexed campaignId,
         address indexed recipient,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     event RefundIssued(
         uint256 indexed campaignId,
         address indexed contributor,
         uint256 amount,
-        bool isETH
+        bool isEth
     );
 
     // ============ FUND MANAGEMENT ============
@@ -53,7 +53,7 @@ interface ITrustLockTreasury {
     /**
      * @notice Claim refund for a failed or expired campaign
      */
-    function claimRefund(uint256 _campaignId) external;
+    function claimRefund(uint256 _campaignId, address _contributor) external;
 
     // ============ VIEW FUNCTIONS ============
 
