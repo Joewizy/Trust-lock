@@ -8,6 +8,7 @@ interface ITrustLockTreasury {
         uint256 indexed campaignId,
         address indexed creator,
         uint256 amount,
+        uint256 milestoneId,  // Track which milestone
         bool isETH
     );
 
@@ -29,8 +30,11 @@ interface ITrustLockTreasury {
 
     /**
      * @notice Release funds for an approved milestone (no protocol fee deducted)
+     * @param _campaignId Campaign ID
+     * @param _amount Amount to release
+     * @param _milestoneId Milestone ID for tracking
      */
-    function releaseFunds(uint256 _campaignId, uint256 _amount) external;
+    function releaseFunds(uint256 _campaignId, uint256 _amount, uint256 _milestoneId) external;
 
     /**
      * @notice Collect protocol fee when campaign completes successfully

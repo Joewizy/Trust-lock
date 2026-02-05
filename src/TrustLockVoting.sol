@@ -295,7 +295,7 @@ contract TrustLockVoting is Pausable {
 
             emit MilestoneApproved(_campaignId, _milestoneId, releaseAmount);
 
-            ITrustLockTreasury(treasuryContract).releaseFunds(_campaignId, releaseAmount);
+            ITrustLockTreasury(treasuryContract).releaseFunds(_campaignId, releaseAmount, _milestoneId);
         } else {
             milestone.state = MilestoneState.REJECTED;
             

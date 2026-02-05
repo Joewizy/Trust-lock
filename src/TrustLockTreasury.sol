@@ -43,9 +43,11 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
     error WithdrawalFailed();
     error NoRefundAvailable();
     error RefundAlreadyClaimed();
-    error CannotHandleETHContributions();
     error CampaignNotCompleted();
     error ProtocolFeeAlreadyCollected();
+    error CannotHandleETHContributions();
+    error InsufficientEthBalance();
+    error InsufficientTokenBalance(address tokenAddress);
 
     // ============ EVENTS ============
     
@@ -53,6 +55,7 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
         uint256 indexed campaignId,
         address indexed creator,
         uint256 amount,
+        uint256 milestoneId,
         bool isETH
     );
 
@@ -118,9 +121,10 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
      * @notice Release funds for approved milestone WITHOUT deducting protocol fees
      * @param _campaignId Campaign ID
      * @param _amount Amount to release (full amount, no fees deducted here)
+     * @param _milestoneId Milestone ID for tracking
      * @dev Protocol fees are only collected when campaign completes successfully
      */
-    function releaseFunds(uint256 _campaignId, uint256 _amount) 
+    function releaseFunds(uint256 _campaignId, uint256 _amount, uint256 _milestoneId) 
         external 
         nonReentrant
         whenNotPaused
@@ -135,13 +139,15 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
 
         // Transfer full amount to creator (NO FEE DEDUCTION)
         if (campaign.acceptsETH) {
+            if (address(this).balance < _amount) revert InsufficientEthBalance();
             (bool success, ) = payable(campaign.creator).call{value: _amount}("");
             if (!success) revert WithdrawalFailed();
             
-            emit FundsWithdrawn(_campaignId, campaign.creator, _amount, true);
+            emit FundsWithdrawn(_campaignId, campaign.creator, _amount, _milestoneId, true);
         } else {
+            if (IERC20(campaign.acceptedToken).balanceOf(address(this)) < _amount) revert InsufficientTokenBalance(address(campaign.acceptedToken));
             IERC20(campaign.acceptedToken).safeTransfer(campaign.creator, _amount);
-            emit FundsWithdrawn(_campaignId, campaign.creator, _amount, false);
+            emit FundsWithdrawn(_campaignId, campaign.creator, _amount, _milestoneId, false);
         }
     }
 
@@ -223,7 +229,10 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
         campaignExists(_campaignId) 
     {
         TrustLockCampaignManager.Campaign memory campaign = getCampaign(_campaignId);
-        uint256 refundAmount = getRefundAmount(_campaignId, msg.sender);
+        
+        if (refundClaimed[_campaignId][msg.sender]) revert RefundAlreadyClaimed();
+        
+        uint256 refundAmount = _calculateRefundAmount(_campaignId, msg.sender);
         if (refundAmount == 0) revert NoRefundAvailable();
         
         // Mark as claimed and transfer
@@ -253,6 +262,75 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
         token.safeTransfer(owner(), _amount);
     }
 
+    // ============ INTERNAL FUNCTIONS ============
+
+    /**
+     * @notice Check if campaign is eligible for refunds
+     * @param campaign Campaign struct
+     * @return True if refunds are available
+     */
+    function _isRefundEligible(TrustLockCampaignManager.Campaign memory campaign) internal view returns (bool) {
+        // Scenario 1: Funding failed (didn't reach goal before deadline)
+        if (campaign.state == TrustLockCampaignManager.CampaignState.FUNDING && 
+            block.timestamp > campaign.fundingDeadline) {
+            return true;
+        }
+
+        // Scenario 2: Campaign marked as FAILED (too many milestone failures)
+        if (campaign.state == TrustLockCampaignManager.CampaignState.FAILED) {
+            return true;
+        }
+
+        // No refunds for active or completed campaigns
+        return false;
+    }
+
+    /**
+     * @notice Calculate refund amount based on campaign state
+     * @param campaign Campaign struct
+     * @param contribution User's contribution amount
+     * @return Refund amount
+     */
+    function _calculateRefund(TrustLockCampaignManager.Campaign memory campaign, uint256 contribution) internal pure returns (uint256) {
+        // Scenario 1: Nothing released yet (funding failed OR no milestones approved)
+        // 100% refund - contributor gets everything back
+        if (campaign.releasedFunds == 0) {
+            return contribution;
+        }
+
+        // Scenario 2: Some funds released, campaign failed
+        // Calculate remaining funds in treasury
+        uint256 remainingFunds = campaign.totalRaised - campaign.releasedFunds;
+
+        return (contribution * remainingFunds) / campaign.totalRaised;
+    }
+
+    /**
+     * @notice Internal function to calculate refund amount
+     * @param _campaignId Campaign ID
+     * @param _contributor Contributor address
+     * @return Refund amount (0 if not eligible)
+     */
+    function _calculateRefundAmount(uint256 _campaignId, address _contributor) 
+        internal 
+        view 
+        returns (uint256) 
+    {
+        TrustLockCampaignManager manager = TrustLockCampaignManager(campaignManager);
+        TrustLockCampaignManager.Campaign memory campaign = manager.getCampaign(_campaignId);
+
+        uint256 contribution = manager.getContribution(_campaignId, _contributor);
+        
+        if (contribution == 0) return 0;
+        if (refundClaimed[_campaignId][_contributor]) return 0;
+
+        bool isRefundable = _isRefundEligible(campaign);
+        if (!isRefundable) return 0;
+
+        return _calculateRefund(campaign, contribution);
+    }
+
+
     // ============ VIEW FUNCTIONS ============
 
     function getCampaign(uint256 _campaignId) public view returns (TrustLockCampaignManager.Campaign memory) {
@@ -260,32 +338,19 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
         return manager.getCampaign(_campaignId);
     }
     
+    /**
+     * @notice Calculate refund amount for a contributor
+     * @param _campaignId Campaign ID
+     * @param _contributor Contributor address
+     * @return Refund amount in wei/tokens
+     */
     function getRefundAmount(uint256 _campaignId, address _contributor) 
         public 
         view 
         campaignExists(_campaignId) 
         returns (uint256) 
     {
-        TrustLockCampaignManager manager = TrustLockCampaignManager(campaignManager);
-        TrustLockCampaignManager.Campaign memory campaign = manager.getCampaign(_campaignId);
-
-        // Campaign must be failed or funding deadline passed without reaching goal
-        bool canRefund = campaign.state == TrustLockCampaignManager.CampaignState.FAILED ||
-                        (campaign.state == TrustLockCampaignManager.CampaignState.FUNDING && 
-                         block.timestamp > campaign.fundingDeadline);
-
-        if (!canRefund) return 0;
-
-        uint256 contributedAmount = manager.getContribution(_campaignId, _contributor);
-        if (contributedAmount == 0 || refundClaimed[_campaignId][_contributor]) return 0;
-
-        // Calculate refund
-        if (campaign.releasedFunds == 0) {
-            return contributedAmount;
-        } else {
-            uint256 remainingFunds = campaign.totalRaised - campaign.releasedFunds;
-            return (contributedAmount * remainingFunds) / campaign.totalRaised;
-        }
+        return _calculateRefundAmount(_campaignId, _contributor);
     }
 
     function hasRefundClaimed(uint256 _campaignId, address _contributor) 
