@@ -6,6 +6,7 @@ import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {TrustLockCampaignManager} from "./TrustLockCampaignManager.sol";
 import {TrustLockVoting} from "./TrustLockVoting.sol";
 import {TrustLockTreasury} from "./TrustLockTreasury.sol";
+import {EnsReverseCheck} from "./interfaces/ens/EnsReverseCheck.sol";
 
 /**
  * @title TrustLockCore
@@ -18,6 +19,7 @@ contract TrustLockCore is Pausable, Ownable {
     // ============ STATE VARIABLES ============
     
     address public protocolFeeRecipient;
+    bool public ensRequired = false;
     
     // Contract instances
     TrustLockCampaignManager public campaignManager;
@@ -38,6 +40,7 @@ contract TrustLockCore is Pausable, Ownable {
     error AmountMustBeZeroForETH();
     error DoNotSendETHForTokenCampaigns();
     error MustSpecifyTokenAmount();
+    error ENSRequired();
 
     // ============ EVENTS ============
     
@@ -81,6 +84,15 @@ contract TrustLockCore is Pausable, Ownable {
         protocolFeeRecipient = _newRecipient;
         treasury.updateProtocolFeeRecipient(_newRecipient);
         emit ProtocolFeeRecipientUpdated(oldRecipient, _newRecipient);
+    }
+
+    /**
+     * @notice Enable/disable ENS requirement for campaign creation on default we set
+     * it to false for easy testing
+     * @param _ensRequired Whether ENS should be required
+     */
+    function setEnsRequired(bool _ensRequired) external onlyOwner {
+        ensRequired = _ensRequired;
     }
 
     /**
@@ -163,6 +175,11 @@ contract TrustLockCore is Pausable, Ownable {
         bool _acceptsEth,
         address _acceptedToken
     ) external whenNotPaused returns (uint256) {
+        if (ensRequired) {
+            (bool hasEns, ) = EnsReverseCheck.safeReverseName(msg.sender);
+            if (!hasEns) revert ENSRequired();
+        }
+        
         return campaignManager.createCampaign(
             _title,
             _description,
