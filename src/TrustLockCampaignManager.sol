@@ -42,6 +42,7 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
     address public votingContract;
     address public treasuryContract;
     address public coreContract;
+    bool private _initialized;
     
     // Constants
     uint256 private constant BASIS_POINT = 10_000;
@@ -77,6 +78,8 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
     error InvalidAddress();
     error UnauthorizedContract();
     error CampaignNotFound();
+    error AlreadyInitialized();
+    error NotInitialized();
 
     // ============ EVENTS ============
     
@@ -105,6 +108,11 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         CampaignState oldState,
         CampaignState newState
     );
+    
+    event ContractsInitialized(
+        address indexed votingContract,
+        address indexed treasuryContract
+    );
 
     event CampaignMarkedAsFailed(
         uint256 indexed campaignId,
@@ -114,6 +122,7 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
     // ============ MODIFIERS ============
     
     modifier onlyAuthorizedContracts() {
+        if (!_initialized) revert NotInitialized();
         if (msg.sender != votingContract && msg.sender != treasuryContract && msg.sender != owner()) {
             revert UnauthorizedContract();
         }
@@ -127,26 +136,36 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
 
     // ============ CONSTRUCTOR ============
     
-    constructor(address _votingContract, address _treasuryContract, address _coreContract) Ownable(msg.sender) {
-        if (_votingContract == address(0) || _treasuryContract == address(0) || _coreContract == address(0)) {
-            revert InvalidAddress();
-        }
-        votingContract = _votingContract;
-        treasuryContract = _treasuryContract;
+    constructor(address _coreContract) Ownable(msg.sender) {
+        if (_coreContract == address(0)) revert InvalidAddress();
         coreContract = _coreContract;
     }
 
-    // ============ OWNER MANAGEMENT ============
+    // ============ INITIALIZATION ============
     
-    function updateVotingContract(address _newVoting) external onlyOwner {
-        if (_newVoting == address(0)) revert InvalidAddress();
-        votingContract = _newVoting;
+    /**
+     * @notice One-time initialization of contract dependencies
+     * @param _votingContract Address of TrustLockVoting
+     * @param _treasuryContract Address of TrustLockTreasury
+     * @dev Can only be called once by owner during deployment
+     */
+    function initialize(
+        address _votingContract, 
+        address _treasuryContract
+    ) external onlyOwner {
+        if (_initialized) revert AlreadyInitialized();
+        if (_votingContract == address(0) || _treasuryContract == address(0)) {
+            revert InvalidAddress();
+        }
+        
+        votingContract = _votingContract;
+        treasuryContract = _treasuryContract;
+        _initialized = true;
+        
+        emit ContractsInitialized(_votingContract, _treasuryContract);
     }
 
-    function updateTreasuryContract(address _newTreasury) external onlyOwner {
-        if (_newTreasury == address(0)) revert InvalidAddress();
-        treasuryContract = _newTreasury;
-    }
+    // ============ OWNER MANAGEMENT ============
     
     function pause() external onlyOwner {
         _pause();

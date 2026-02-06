@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "../TrustLockCampaignManager.sol";
-import "../TrustLockVoting.sol";
+import {TrustLockCampaignManager} from "../TrustLockCampaignManager.sol";
+import {TrustLockVoting} from "../TrustLockVoting.sol";
 
 /**
  * @title ITrustLock

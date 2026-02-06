@@ -250,7 +250,7 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
 
     // ============ EMERGENCY FUNCTIONS ============
     
-    function emergencyWithdrawETH(uint256 _amount) external onlyOwner {
+    function emergencyWithdrawEth(uint256 _amount) external onlyOwner {
         if (address(this).balance < _amount) revert WithdrawalFailed();
         (bool success, ) = payable(owner()).call{value: _amount}("");
         if (!success) revert WithdrawalFailed();

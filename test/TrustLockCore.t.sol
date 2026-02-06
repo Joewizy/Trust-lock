@@ -277,8 +277,7 @@ contract TrustLockCoreTest is Test {
         // Wait for voting to end
         vm.warp(block.timestamp + 7 days + 1);
 
-        uint256 creatorBalanceBefore = creator.balance;
-
+        
         // Finalize
         trustLock.finalizeMilestone(campaignId, 1);
 
@@ -337,8 +336,8 @@ contract TrustLockCoreTest is Test {
             vm.prank(creator);
             trustLock.createMilestone(creator, campaignId, "Milestone", 10);
 
-            address firstContributor = makeAddr(string(abi.encodePacked("contributor", uint256(0))));
-            vm.prank(firstContributor);
+            address voter = makeAddr(string(abi.encodePacked("contributor", uint256(0))));
+            vm.prank(voter);
             trustLock.vote(campaignId, i, false);
 
             vm.warp(block.timestamp + 7 days + 1);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ITrustLockTreasury } from "./interfaces/ITrustLockTreasury.sol";
 import { TrustLockCampaignManager } from "./TrustLockCampaignManager.sol";
@@ -10,7 +11,7 @@ import { TrustLockCampaignManager } from "./TrustLockCampaignManager.sol";
  * @notice Handles milestone creation and voting logic
  * @dev Focused solely on voting mechanics and milestone management
  */
-contract TrustLockVoting is Pausable {
+contract TrustLockVoting is Ownable, Pausable {
     
     // ============ TYPES ============
     
@@ -33,9 +34,9 @@ contract TrustLockVoting is Pausable {
 
     // ============ STATE VARIABLES ============
     
-    address public owner;
     address public campaignManager;
     address public treasuryContract;
+    bool private _initialized;
     
     // Constants
     uint256 public constant VOTING_DURATION = 7 days;
@@ -66,6 +67,8 @@ contract TrustLockVoting is Pausable {
     error UnauthorizedContract();
     error CampaignNotFound();
     error VotingHasNotEnded();
+    error AlreadyInitialized();
+    error NotInitialized();
 
     // ============ EVENTS ============
     
@@ -93,15 +96,13 @@ contract TrustLockVoting is Pausable {
         uint256 indexed campaignId,
         uint256 indexed milestoneId
     );
+    
+    event TreasurySet(address indexed treasuryContract);
 
     // ============ MODIFIERS ============
     
-    modifier onlyOwner() {
-        if (msg.sender != owner) revert NotOwner();
-        _;
-    }
-    
     modifier onlyAuthorizedContracts() {
+        if (!_initialized) revert NotInitialized();
         if (msg.sender != campaignManager && msg.sender != treasuryContract) {
             revert UnauthorizedContract();
         }
@@ -116,18 +117,29 @@ contract TrustLockVoting is Pausable {
 
     // ============ CONSTRUCTOR ============
     
-    constructor(address _campaignManager, address _treasuryContract) {
-        if (_campaignManager == address(0) || _treasuryContract == address(0)) {
-            revert InvalidAddress();
-        }
-        owner = msg.sender;
+    /**
+     * @notice Deploy Voting contract with minimal dependencies
+     * @param _campaignManager Address of TrustLockCampaignManager
+     * @dev Treasury address set via initialize() after deployment
+     */
+    constructor(address _campaignManager) Ownable(msg.sender) {
+        if (_campaignManager == address(0)) revert InvalidAddress();
         campaignManager = _campaignManager;
-        treasuryContract = _treasuryContract;
     }
 
     // ============ ADMIN MANAGEMENT ============
     
+    function initialize(address _treasuryContract) external onlyOwner {
+        if (_initialized) revert AlreadyInitialized();
+        if (_treasuryContract == address(0)) revert InvalidAddress();
+        treasuryContract = _treasuryContract;
+        _initialized = true;
+        
+        emit TreasurySet(_treasuryContract);
+    }
+
     function updateTreasuryContract(address _newTreasury) external onlyOwner {
+        if (_initialized) revert AlreadyInitialized();
         if (_newTreasury == address(0)) revert InvalidAddress();
         treasuryContract = _newTreasury;
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import {Script} from "forge-std/Script.sol";
+import {Script, console} from "forge-std/Script.sol";
 import {TrustLockCore} from "../src/TrustLockCore.sol";
 
 
@@ -18,8 +18,7 @@ contract DeployTrustLock is Script {
         // Start broadcasting transactions
         vm.startBroadcast(deployerPrivateKey);
 
-        // Set protocol fee recipient (can be changed to DAO/multisig later)
-        address protocolFeeRecipient = deployer; // Change this for production
+        address protocolFeeRecipient = deployer;
 
         // Deploy main contract
         TrustLockCore trustLock = new TrustLockCore(protocolFeeRecipient);

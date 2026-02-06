@@ -376,25 +376,26 @@ contract TrustLockCore is Pausable, Ownable {
     // ============ INTERNAL FUNCTIONS ============
     
     /**
-     * @notice Deploy the three specialized contracts
+     * @notice Deploy three specialized contracts with clean architecture
+     * @dev Uses initialize pattern to avoid circular dependencies
      */
     function _deployContracts() internal {
-        // Deploy Campaign Manager with Core contract address
-        campaignManager = new TrustLockCampaignManager(address(this), address(this), address(this));
+        campaignManager = new TrustLockCampaignManager(address(this));
         if (address(campaignManager) == address(0)) revert DeploymentFailed();
         
-        // Deploy Voting contract
-        voting = new TrustLockVoting(address(campaignManager), address(this));
+        voting = new TrustLockVoting(address(campaignManager));
         if (address(voting) == address(0)) revert DeploymentFailed();
         
-        // Deploy Treasury contract with all addresses
-        treasury = new TrustLockTreasury(address(campaignManager), address(voting), protocolFeeRecipient);
+        treasury = new TrustLockTreasury(
+            address(campaignManager), 
+            address(voting), 
+            protocolFeeRecipient
+        );
         if (address(treasury) == address(0)) revert DeploymentFailed();
         
-        // Update contract references
-        campaignManager.updateVotingContract(address(voting));
-        campaignManager.updateTreasuryContract(address(treasury));
-        voting.updateTreasuryContract(address(treasury));
+        // Initialize contracts with their dependencies
+        campaignManager.initialize(address(voting), address(treasury));
+        voting.initialize(address(treasury));
         
         emit ContractsDeployed(address(campaignManager), address(voting), address(treasury));
     }
