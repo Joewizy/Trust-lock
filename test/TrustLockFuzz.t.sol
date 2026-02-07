@@ -310,7 +310,7 @@ contract TrustLockFuzzTest is Test {
         uint256 feeAfterCompletion = protocolFeeRecipient.balance;
 
         // Try to collect fee again (should revert)
-        vm.expectRevert(TrustLockTreasury.ProtocolFeeAlreadyCollected.selector);
+        vm.expectRevert(TrustLockTreasury.NoFeeToCollect.selector);
         treasury.collectProtocolFee(campaignId);
 
         // Fee should not change

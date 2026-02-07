@@ -286,22 +286,15 @@ contract TrustLockVoting is Ownable, Pausable {
             // Reset consecutive failures on successful milestone
             manager.resetConsecutiveFailures(_campaignId);
             
-            // Calculate amounts
-            uint256 releaseAmount = (campaign.totalRaised * milestone.fundingPercentage) / 100;
+            // Calculate amounts from AVAILABLE funds (not total raised)
+            uint256 releaseAmount = (campaign.availableFunds * milestone.fundingPercentage) / 100;
             
             // Check if this will complete the campaign
-            bool willComplete = campaign.releasedFunds + releaseAmount >= campaign.totalRaised;
+            bool willComplete = campaign.releasedFunds + releaseAmount >= campaign.availableFunds;
             
             // Update campaign state
             if (willComplete) {
                 manager.updateCampaignState(_campaignId, TrustLockCampaignManager.CampaignState.COMPLETED);
-
-                // If this is the final milestone, deduct protocol fee from release amount
-                uint256 protocolFee = (campaign.totalRaised * 2) / 100; 
-                releaseAmount -= protocolFee;
-                
-                // Automatically collect protocol fee when campaign completes
-                ITrustLockTreasury(treasuryContract).collectProtocolFee(_campaignId);
             } else {
                 manager.updateCampaignState(_campaignId, TrustLockCampaignManager.CampaignState.ACTIVE);
             }

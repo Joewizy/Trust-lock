@@ -5,6 +5,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ITrustLockCore} from "./interfaces/ITrustLockCore.sol";
+import {ITrustLockTreasury} from "./interfaces/ITrustLockTreasury.sol";
 
 /**
  * @title TrustLockCampaignManager
@@ -12,6 +13,8 @@ import {ITrustLockCore} from "./interfaces/ITrustLockCore.sol";
  * @dev Focused solely on campaign lifecycle management
  */
 contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
+    
+    // ============ ENUMS ============
     
     enum CampaignState {
         FUNDING,  // Accepting contributions
@@ -26,6 +29,8 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         address acceptedToken;     
         uint256 fundingGoal;       
         uint256 totalRaised;       
+        uint256 protocolFee;       // 2% protocol fee, computed once
+        uint256 availableFunds;    
         uint64 fundingDeadline;    
         uint64 projectDuration;    
         uint64 createdAt;          
@@ -49,7 +54,14 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
     uint256 private constant MINIMUM_CONTRIBUTION = 0.001 ether;
     uint256 private constant MAX_CONTRIBUTION_PERCENTAGE = 200; 
     uint256 private constant FUNDING_DURATION = 4 weeks;
-    uint256 private constant PROJECT_MAX_DURATION = 52 weeks; 
+    uint256 private constant PROJECT_MAX_DURATION = 52 weeks;
+    uint256 public constant PROTOCOL_FEE_PERCENT = 2; // 2% fee
+    
+    // String validation constants
+    uint256 private constant MIN_TITLE_LENGTH = 3;
+    uint256 private constant MAX_TITLE_LENGTH = 100;
+    uint256 private constant MIN_DESCRIPTION_LENGTH = 10;
+    uint256 private constant MAX_DESCRIPTION_LENGTH = 1000; 
     
     // Protocol state
     uint256 public campaignCounter;
@@ -80,6 +92,8 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
     error CampaignNotFound();
     error AlreadyInitialized();
     error NotInitialized();
+    error InvalidStringLength();
+    error ExceedsAvailableFunds();
 
     // ============ EVENTS ============
     
@@ -196,6 +210,14 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         address _acceptedToken,
         address _creator
     ) external whenNotPaused returns (uint256) {
+        // Validate strings
+        if (!_isValidString(_title, MIN_TITLE_LENGTH, MAX_TITLE_LENGTH)) {
+            revert InvalidStringLength();
+        }
+        if (!_isValidString(_description, MIN_DESCRIPTION_LENGTH, MAX_DESCRIPTION_LENGTH)) {
+            revert InvalidStringLength();
+        }
+        
         if (_fundingGoal < MINIMUM_CONTRIBUTION) revert FundingGoalTooLow();
         if (_projectDuration > PROJECT_MAX_DURATION) revert ProjectDurationTooLong();
 
@@ -274,7 +296,17 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         emit ContributionReceived(_campaignId, _contributor, _amount, campaign.acceptsEth);
 
         // Check if funding goal reached
-        if (campaign.totalRaised == campaign.fundingGoal) {
+        if (campaign.totalRaised >= campaign.fundingGoal && campaign.availableFunds == 0) {
+            // Compute fee ONCE and store permanently
+            uint256 fee = (campaign.totalRaised * PROTOCOL_FEE_PERCENT) / 100;
+            
+            campaign.protocolFee = fee;
+            campaign.availableFunds = campaign.totalRaised - fee;
+            
+            // Tell Treasury to transfer stored fee
+            ITrustLockTreasury(treasuryContract).collectProtocolFee(_campaignId);
+            
+            // Update state
             _updateCampaignState(_campaignId, CampaignState.ACTIVE);
             emit CampaignFunded(_campaignId, campaign.totalRaised, block.timestamp);
         }
@@ -372,7 +404,22 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         onlyAuthorizedContracts 
         campaignExists(_campaignId) 
     {
+        Campaign storage campaign = campaigns[_campaignId];
+        
+        // Enforce invariant: cannot release more than available
+        if (campaign.releasedFunds + _amount > campaign.availableFunds) {
+            revert ExceedsAvailableFunds();
+        }
+        
         campaigns[_campaignId].releasedFunds += _amount;
+    }
+
+    // ============ INTERNAL FUNCTIONS ============
+    
+    /// @notice Check string length
+    function _isValidString(string memory str, uint256 min, uint256 max) internal pure returns (bool) {
+        bytes memory b = bytes(str);
+        return b.length >= min && b.length <= max;
     }
 
     // ============ VIEW FUNCTIONS ============

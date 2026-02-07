@@ -29,9 +29,6 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
     // Protocol state
     uint256 public totalProtocolFees;
     
-    // Track if protocol fee has been collected for a campaign
-    mapping(uint256 => bool) public protocolFeeCollected;
-    
     // Refund tracking
     mapping(uint256 => mapping(address => bool)) public refundClaimed;
 
@@ -44,10 +41,10 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
     error NoRefundAvailable();
     error RefundAlreadyClaimed();
     error CampaignNotCompleted();
-    error ProtocolFeeAlreadyCollected();
     error CannotHandleETHContributions();
     error InsufficientEthBalance();
     error InsufficientTokenBalance(address tokenAddress);
+    error NoFeeToCollect();
 
     // ============ EVENTS ============
     
@@ -152,45 +149,30 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Collect protocol fee when campaign successfully completes
+     * @notice Transfer protocol fee (computed and stored in CampaignManager)
      * @param _campaignId Campaign ID
-     * @dev Can only be called once per campaign and only when state is COMPLETED
      */
     function collectProtocolFee(uint256 _campaignId) 
         external 
         nonReentrant
-        whenNotPaused
-        campaignExists(_campaignId) 
+        onlyAuthorizedContracts 
     {
         TrustLockCampaignManager manager = TrustLockCampaignManager(campaignManager);
         TrustLockCampaignManager.Campaign memory campaign = manager.getCampaign(_campaignId);
-
-        // Validate campaign is completed
-        if (campaign.state != TrustLockCampaignManager.CampaignState.COMPLETED) {
-            revert CampaignNotCompleted();
-        }
-
-        // Check if already collected
-        if (protocolFeeCollected[_campaignId]) {
-            revert ProtocolFeeAlreadyCollected();
-        }
-
-        // Mark as collected
-        protocolFeeCollected[_campaignId] = true;
-
-        // Calculate protocol fee on total raised amount
-        uint256 protocolFee = (campaign.totalRaised * PROTOCOL_FEE_PERCENT) / 100;
-        totalProtocolFees += protocolFee;
-
-        // Transfer protocol fee
+        
+        uint256 fee = campaign.protocolFee;
+        if (fee == 0) revert NoFeeToCollect();
+        
+        totalProtocolFees += fee;
+        
+        // Transfer fee
         if (campaign.acceptsEth) {
-            (bool success, ) = payable(protocolFeeRecipient).call{value: protocolFee}("");
+            (bool success, ) = payable(protocolFeeRecipient).call{value: fee}("");
             if (!success) revert WithdrawalFailed();
-            
-            emit ProtocolFeeCollected(_campaignId, protocolFeeRecipient, protocolFee, true);
+            emit ProtocolFeeCollected(_campaignId, protocolFeeRecipient, fee, true);
         } else {
-            IERC20(campaign.acceptedToken).safeTransfer(protocolFeeRecipient, protocolFee);
-            emit ProtocolFeeCollected(_campaignId, protocolFeeRecipient, protocolFee, false);
+            IERC20(campaign.acceptedToken).safeTransfer(protocolFeeRecipient, fee);
+            emit ProtocolFeeCollected(_campaignId, protocolFeeRecipient, fee, false);
         }
     }
 
@@ -293,15 +275,15 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
      */
     function _calculateRefund(TrustLockCampaignManager.Campaign memory campaign, uint256 contribution) internal pure returns (uint256) {
         // Scenario 1: Nothing released yet (funding failed OR no milestones approved)
-        // 100% refund - contributor gets everything back
+        // Protocol fee (2%) was collected when campaign became ACTIVE
+        // Refunds are proportional to availableFunds only (totalRaised - protocolFee)
         if (campaign.releasedFunds == 0) {
-            return contribution;
+            return (contribution * campaign.availableFunds) / campaign.totalRaised;
         }
 
         // Scenario 2: Some funds released, campaign failed
-        // Calculate remaining funds in treasury
-        uint256 remainingFunds = campaign.totalRaised - campaign.releasedFunds;
-
+        // Refunds are proportional to remaining available funds
+        uint256 remainingFunds = campaign.availableFunds - campaign.releasedFunds;
         return (contribution * remainingFunds) / campaign.totalRaised;
     }
 
