@@ -21,6 +21,7 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
 
     address public campaignManager;
     address public votingContract;
+    address public coreContract;
     address public protocolFeeRecipient;
     
     // Constants
@@ -73,7 +74,7 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
     // ============ MODIFIERS ============
     
     modifier onlyAuthorizedContracts() {
-        if (msg.sender != votingContract && msg.sender != owner()) {
+        if (msg.sender != campaignManager && msg.sender != votingContract && msg.sender != coreContract) {
             revert UnauthorizedContract();
         }
         _;
@@ -87,13 +88,14 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
 
     // ============ CONSTRUCTOR ============
     
-    constructor(address _campaignManager, address _votingContract, address _protocolFeeRecipient) Ownable(msg.sender) {
-        if (_campaignManager == address(0) || _votingContract == address(0) || _protocolFeeRecipient == address(0)) {
+    constructor(address _campaignManager, address _votingContract, address _coreContract, address _protocolFeeRecipient) Ownable(msg.sender) {
+        if (_campaignManager == address(0) || _votingContract == address(0) || _coreContract == address(0) || _protocolFeeRecipient == address(0)) {
             revert InvalidAddress();
         }
 
         campaignManager = _campaignManager;
         votingContract = _votingContract;
+        coreContract = _coreContract;
         protocolFeeRecipient = _protocolFeeRecipient;
     }
 

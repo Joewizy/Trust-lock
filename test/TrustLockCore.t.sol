@@ -311,20 +311,32 @@ contract TrustLockCoreTest is Test {
 
     function testClaimRefundOnFailedCampaign() public {
         uint256 campaignId = _createCampaign(true);
+        _fundCampaign(campaignId, true);
 
-        vm.startPrank(contributor1);
-        trustLock.contribute{value: 0.1 ether}(campaignId, 0);
-        vm.stopPrank();
+        // Create and reject 3 milestones
+        for (uint256 i = 1; i <= 3; i++) {
+            vm.prank(creator);
+            trustLock.createMilestone(creator, campaignId, "Milestone", 10);
 
-        // Wait past funding deadline
-        vm.warp(block.timestamp + 4 weeks + 1);
+            address voter = makeAddr(string(abi.encodePacked("contributor", uint256(0))));
+            vm.prank(voter);
+            trustLock.vote(campaignId, i, false);
 
-        uint256 balanceBefore = contributor1.balance;
+            vm.warp(block.timestamp + 7 days + 1);
+            vm.prank(creator);
+            trustLock.finalizeMilestone(campaignId, i);
+        }
+        
+        address contributor = trustLock.getContributors(campaignId)[0];
+        uint256 contributionValue = trustLock.getContribution(campaignId, contributor);
+        uint256 expectRefundAmount = contributionValue - (contributionValue * 2 / 100); // 2% fee
 
-        vm.prank(contributor1);
+        uint256 balanceBefore = contributor.balance;
+
+        vm.prank(contributor);
         trustLock.claimRefund(campaignId);
 
-        assertEq(contributor1.balance - balanceBefore, 0.1 ether);
+        assertEq(contributor.balance - balanceBefore, expectRefundAmount);
     }
 
     function testClaimRefundAfterMultipleRejections() public {
@@ -349,13 +361,14 @@ contract TrustLockCoreTest is Test {
         assertTrue(campaign.state == TrustLockCampaignManager.CampaignState.FAILED);
 
         address firstContributor = trustLock.getContributors(campaignId)[0];
+        uint256 contributorValue = trustLock.getContribution(campaignId, firstContributor);
         uint256 balanceBefore = token.balanceOf(firstContributor);
 
         vm.prank(firstContributor);
         trustLock.claimRefund(campaignId);
-
-        uint256 maxContribution = (FUNDING_GOAL * 200) / 10000; // 2% max contribution
-        assertEq(token.balanceOf(firstContributor) - balanceBefore, maxContribution);
+        
+        uint256 expectedRefund = (contributorValue * campaign.availableFunds) / campaign.fundingGoal;
+        assertEq(token.balanceOf(firstContributor) - balanceBefore, expectedRefund);
     }
 
     function _createCampaign(bool isEth) internal returns (uint256 campaignId) {

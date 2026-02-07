@@ -406,6 +406,7 @@ contract TrustLockCore is Pausable, Ownable {
         treasury = new TrustLockTreasury(
             address(campaignManager), 
             address(voting), 
+            address(this),
             protocolFeeRecipient
         );
         if (address(treasury) == address(0)) revert DeploymentFailed();
