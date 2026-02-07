@@ -10,7 +10,7 @@ import { RaiseStepper } from '@/components/shared/raise-stepper';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+// import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import {
   clearDraft,
@@ -28,6 +28,7 @@ const rules = [
 export default function CreateRaiseAcknowledgement() {
   const router = useRouter();
   const { address } = useAccount();
+
   const [acknowledged, setAcknowledged] = React.useState<boolean[]>(
     rules.map(() => false),
   );
@@ -35,9 +36,12 @@ export default function CreateRaiseAcknowledgement() {
 
   const draft = loadDraft();
 
-  const toggleAcknowledgement = (index: number) => {
+  /**
+   * Correct handler for shadcn / Radix Checkbox
+   */
+  const setAcknowledgement = (index: number, checked: boolean) => {
     setAcknowledged((current) =>
-      current.map((value, idx) => (idx === index ? !value : value)),
+      current.map((value, idx) => (idx === index ? checked : value)),
     );
   };
 
@@ -49,7 +53,12 @@ export default function CreateRaiseAcknowledgement() {
       return;
     }
 
-    if (!draft?.title || !draft.description || !draft.fundingGoal || !draft.durationDays) {
+    if (
+      !draft?.title ||
+      !draft.description ||
+      !draft.fundingGoal ||
+      !draft.durationDays
+    ) {
       setError('Complete the basic details before creating this raise.');
       return;
     }
@@ -66,7 +75,10 @@ export default function CreateRaiseAcknowledgement() {
       fundingGoal: Number(draft.fundingGoal),
       durationDays: Number(draft.durationDays),
       createdAt,
-      creator: address ?? draft.creator ?? '0x0000000000000000000000000000000000000000',
+      creator:
+        address ??
+        draft.creator ??
+        '0x0000000000000000000000000000000000000000',
       state: 'funding' as const,
       fundingDeadline,
       fundsReleased: 0,
@@ -99,28 +111,39 @@ export default function CreateRaiseAcknowledgement() {
           <CardHeader>
             <CardTitle>Before you publish</CardTitle>
           </CardHeader>
+
           <CardContent className='space-y-6'>
             <p className='text-sm text-muted-foreground'>
-              Before this raise can be created, you must explicitly acknowledge the
-              rules enforced by the TRUSTLOCK protocol. These rules are automatic and
-              apply equally to all participants.
+              Before this raise can be created, you must explicitly acknowledge
+              the rules enforced by the TRUSTLOCK protocol. These rules are
+              automatic and apply equally to all participants.
             </p>
+
             <div className='space-y-4'>
               {rules.map((rule, index) => (
                 <label key={rule} className='flex items-start gap-3 text-sm'>
-                  <Checkbox
+                  <input
+                    type='checkbox'
                     checked={acknowledged[index]}
-                    onCheckedChange={() => toggleAcknowledgement(index)}
+                    onChange={(e) =>
+                      setAcknowledgement(index, e.target.checked)
+                    }
+                    className='mt-1 h-4 w-4 rounded border-gray-300 text-black focus:ring-0'
                   />
+
                   <span className='text-muted-foreground'>{rule}</span>
                 </label>
               ))}
             </div>
+
             <div className='rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700'>
-              Creating this raise is irreversible. Once published, milestone structure,
-              funding rules, and protocol constraints cannot be changed.
+              Creating this raise is irreversible. Once published, milestone
+              structure, funding rules, and protocol constraints cannot be
+              changed.
             </div>
-            {error ? <p className='text-sm text-rose-600'>{error}</p> : null}
+
+            {error && <p className='text-sm text-rose-600'>{error}</p>}
+
             <div className='flex flex-wrap items-center justify-end gap-3'>
               <Link
                 href='/raise/create/milestones'
@@ -131,16 +154,19 @@ export default function CreateRaiseAcknowledgement() {
             </div>
           </CardContent>
         </Card>
+
         <Card className='bg-white/70'>
           <CardHeader>
             <CardTitle>Publishing tips</CardTitle>
           </CardHeader>
           <CardContent className='space-y-3 text-sm text-muted-foreground'>
             <p>
-              Strong raises outline outcomes, timelines, and evidence expectations up
-              front. Aim for clarity and measurable progress.
+              Strong raises outline outcomes, timelines, and evidence
+              expectations up front. Aim for clarity and measurable progress.
             </p>
-            <p>Consider including supporting links or docs for each milestone.</p>
+            <p>
+              Consider including supporting links or docs for each milestone.
+            </p>
           </CardContent>
         </Card>
       </section>
