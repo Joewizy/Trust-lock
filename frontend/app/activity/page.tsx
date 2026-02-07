@@ -1,9 +1,11 @@
-import Link from "next/link"
-import { Search } from "lucide-react"
+'use client';
 
-import { PageShell } from "@/components/shared/page-shell"
-import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
+import Link from 'next/link';
+import { Search } from 'lucide-react';
+
+import { PageShell } from '@/components/shared/page-shell';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -11,94 +13,165 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Progress } from "@/components/ui/progress"
-import { cn } from "@/lib/utils"
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 const myRaises = [
   {
-    id: "openvote",
-    title: "OpenVote Registry",
+    id: 'openvote',
+    title: 'OpenVote Registry',
     description:
-      "Funding the core registry, audit, and public frontend for the initiative.",
-    raised: "$5,322.12",
-    target: "$8,322.12",
-    locked: "$5,322.12",
+      'Funding the core registry, audit, and public frontend for the initiative.',
+    raised: '$5,322.12',
+    target: '$8,322.12',
+    locked: '$5,322.12',
     progress: 64,
-    status: "Active",
+    status: 'Active',
   },
   {
-    id: "atlas",
-    title: "Atlas Climate Ledger",
+    id: 'atlas',
+    title: 'Atlas Climate Ledger',
     description:
-      "Verification rails for high-integrity climate projects worldwide.",
-    raised: "$7,920.20",
-    target: "$10,500.00",
-    locked: "$6,112.09",
+      'Verification rails for high-integrity climate projects worldwide.',
+    raised: '$7,920.20',
+    target: '$10,500.00',
+    locked: '$6,112.09',
     progress: 75,
-    status: "Active",
+    status: 'Active',
   },
-]
+];
+
+const contributions = [
+  {
+    id: 'openvote',
+    title: 'OpenVote Registry',
+    description:
+      'Supporting milestone approvals and ongoing development of the registry.',
+    raised: '$5,322.12',
+    target: '$8,322.12',
+    locked: '$5,322.12',
+    progress: 64,
+    status: 'Voting Open',
+  },
+  {
+    id: 'audit',
+    title: 'Quorum Audit Pack',
+    description:
+      'Funding a full security audit, documentation overhaul, and launch support.',
+    raised: '$4,109.88',
+    target: '$9,800.00',
+    locked: '$3,810.44',
+    progress: 42,
+    status: 'Active',
+  },
+];
 
 export default function Activity() {
   return (
     <PageShell>
-      <section className="space-y-4">
-        <Badge variant="secondary" className="w-fit">
+      <section className='space-y-4'>
+        <Badge variant='secondary' className='w-fit'>
           My Activity
         </Badge>
-        <h1 className="text-4xl font-semibold leading-tight sm:text-5xl font-[var(--font-display)]">
+        <h1 className='text-4xl font-semibold leading-tight sm:text-5xl font-[var(--font-display)]'>
           Your raises at a glance.
         </h1>
-        <p className="max-w-2xl text-base text-muted-foreground">
+        <p className='max-w-2xl text-base text-muted-foreground'>
           Track the raises you have created, monitor funding progress, and manage
           your milestones from a single place.
         </p>
       </section>
 
-      <div className="mt-8 max-w-xl">
-        <div className="relative">
-          <Search className="absolute left-4 top-3.5 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-10" placeholder="Search your raises" />
+      <div className='mt-8 max-w-xl'>
+        <div className='relative'>
+          <Search className='absolute left-4 top-3.5 h-4 w-4 text-muted-foreground' />
+          <Input className='pl-10' placeholder='Search your activity' />
         </div>
       </div>
 
-      <section className="mt-10 grid gap-6 md:grid-cols-2">
-        {myRaises.map((raise) => (
-          <Card key={raise.id} className="flex h-full flex-col">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{raise.title}</CardTitle>
-                <Badge variant="success">{raise.status}</Badge>
-              </div>
-              <CardDescription>{raise.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="space-y-2">
-                <Progress value={raise.progress} />
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Raised: {raise.raised}</span>
-                  <span>Target: {raise.target}</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Locked: {raise.locked}</span>
-                <span>{raise.progress}% funded</span>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Link
-                href={`/raise/${raise.id}`}
-                className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-              >
-                View raise
-              </Link>
-              <Badge variant="secondary">Milestone live</Badge>
-            </CardFooter>
-          </Card>
-        ))}
-      </section>
+      <Tabs defaultValue='raises' className='mt-8'>
+        <TabsList>
+          <TabsTrigger value='raises'>Raises</TabsTrigger>
+          <TabsTrigger value='contributions'>Contributions</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value='raises'>
+          <section className='grid gap-6 md:grid-cols-2'>
+            {myRaises.map((raise) => (
+              <Card key={raise.id} className='flex h-full flex-col'>
+                <CardHeader>
+                  <div className='flex items-center justify-between'>
+                    <CardTitle>{raise.title}</CardTitle>
+                    <Badge variant='success'>{raise.status}</Badge>
+                  </div>
+                  <CardDescription>{raise.description}</CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-5'>
+                  <div className='space-y-2'>
+                    <Progress value={raise.progress} />
+                    <div className='flex items-center justify-between text-xs text-muted-foreground'>
+                      <span>Raised: {raise.raised}</span>
+                      <span>Target: {raise.target}</span>
+                    </div>
+                  </div>
+                  <div className='flex items-center justify-between text-xs text-muted-foreground'>
+                    <span>Locked: {raise.locked}</span>
+                    <span>{raise.progress}% funded</span>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Link
+                    href={`/raise/${raise.id}`}
+                    className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
+                    Manage raise
+                  </Link>
+                  <Badge variant='secondary'>Owner</Badge>
+                </CardFooter>
+              </Card>
+            ))}
+          </section>
+        </TabsContent>
+
+        <TabsContent value='contributions'>
+          <section className='grid gap-6 md:grid-cols-2'>
+            {contributions.map((raise) => (
+              <Card key={raise.id} className='flex h-full flex-col'>
+                <CardHeader>
+                  <div className='flex items-center justify-between'>
+                    <CardTitle>{raise.title}</CardTitle>
+                    <Badge variant='warning'>{raise.status}</Badge>
+                  </div>
+                  <CardDescription>{raise.description}</CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-5'>
+                  <div className='space-y-2'>
+                    <Progress value={raise.progress} />
+                    <div className='flex items-center justify-between text-xs text-muted-foreground'>
+                      <span>Raised: {raise.raised}</span>
+                      <span>Target: {raise.target}</span>
+                    </div>
+                  </div>
+                  <div className='flex items-center justify-between text-xs text-muted-foreground'>
+                    <span>Locked: {raise.locked}</span>
+                    <span>{raise.progress}% funded</span>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Link
+                    href={`/raise/${raise.id}`}
+                    className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
+                    View raise
+                  </Link>
+                  <Badge variant='secondary'>Contributor</Badge>
+                </CardFooter>
+              </Card>
+            ))}
+          </section>
+        </TabsContent>
+      </Tabs>
     </PageShell>
-  )
+  );
 }

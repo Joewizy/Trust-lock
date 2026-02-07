@@ -1,49 +1,70 @@
-import Link from "next/link"
-import { ArrowUpRight } from "lucide-react"
+'use client';
 
-import { Button, buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import Link from 'next/link';
+import { ArrowUpRight, Wallet } from 'lucide-react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+
+import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const navLinks = [
-  { label: "Discover", href: "/" },
-  { label: "How It Works", href: "/how-it-works" },
-  { label: "My Activity", href: "/activity" },
-]
+  { id: 1, label: 'Discover', href: '/' },
+  { id: 2, label: 'How It Works', href: '/how-it-works' },
+  { id: 3, label: 'My Activity', href: '/activity' },
+];
 
 export function SiteHeader() {
   return (
-    <header className="relative z-10 w-full border-b border-transparent">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
+    <header className='relative z-10 w-full border-b border-transparent'>
+      <div className='mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6'>
+        <Link href='/' className='text-lg font-semibold tracking-tight'>
           RaiseBox
         </Link>
-        <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
+        <nav className='hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex'>
           {navLinks.map((link) => (
             <Link
-              key={link.href}
+              key={link.id}
               href={link.href}
-              className="transition-colors hover:text-foreground"
-            >
+              className='transition-colors hover:text-foreground'>
               {link.label}
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className='flex items-center gap-3'>
           <Link
-            href="/raise/create/basic"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
+            href='/raise/create/basic'
+            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
             Create a Raise
           </Link>
-          <Button size="sm" className="hidden sm:inline-flex">
-            Connect Wallet
-            <ArrowUpRight className="h-4 w-4" />
-          </Button>
-          <div className="hidden rounded-full border border-border/70 bg-white/70 px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm md:block">
-            0x1234...abcd
-          </div>
+          <ConnectButton.Custom>
+            {({ account, chain, openAccountModal, openConnectModal, mounted }) => {
+              const ready = mounted;
+              const connected = ready && account && chain;
+
+              if (!connected) {
+                return (
+                  <Button size='sm' className='hidden sm:inline-flex' onClick={openConnectModal}>
+                    Connect Wallet
+                    <ArrowUpRight className='h-4 w-4' />
+                  </Button>
+                );
+              }
+
+              return (
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={openAccountModal}
+                  className='hidden items-center gap-2 rounded-full border-border/70 bg-white/80 text-xs font-medium text-muted-foreground shadow-sm md:inline-flex'>
+                  <Wallet className='h-3.5 w-3.5' />
+                  {account.displayName}
+                </Button>
+              );
+            }}
+          </ConnectButton.Custom>
         </div>
       </div>
     </header>
-  )
+  );
 }
