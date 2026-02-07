@@ -8,15 +8,8 @@ import {
   useConfig 
 } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
-import { 
-  trustLockCoreAddress, 
-  trustLockCoreAbi,
-  campaignManagerAbi,
-  votingAbi,
-  treasuryAbi 
-} from '@/abi/TrustLockAbi';
-import { Milestone } from '../contracts/types';
-import { Campaign } from '../contracts';
+import { TrustLockCoreAddress, TrustLockCoreABI } from '../contracts/abi';
+import { Milestone, Campaign } from '../contracts/types';
 
 // ========================================
 // HOOK
@@ -35,8 +28,8 @@ export const useTrustLock = () => {
   // ========================================
 
   const { data: protocolStats, refetch: refetchStats } = useReadContract({
-    address: trustLockCoreAddress,
-    abi: trustLockCoreAbi,
+    address: TrustLockCoreAddress,
+    abi: TrustLockCoreABI,
     functionName: 'getProtocolStats',
     query: { enabled: isConnected }
   });
@@ -50,16 +43,16 @@ export const useTrustLock = () => {
 
   const useCampaign = (campaignId?: number) => {
     const { data: campaignData, refetch: refetchCampaign } = useReadContract({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
       functionName: 'getCampaign',
       args: campaignId !== undefined ? [BigInt(campaignId)] : undefined,
       query: { enabled: isConnected && campaignId !== undefined }
     });
 
     const { data: contributors, refetch: refetchContributors } = useReadContract({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
       functionName: 'getContributors',
       args: campaignId !== undefined ? [BigInt(campaignId)] : undefined,
       query: { enabled: isConnected && campaignId !== undefined }
@@ -88,16 +81,16 @@ export const useTrustLock = () => {
 
   const useUserContribution = (campaignId?: number) => {
     const { data: contribution } = useReadContract({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
       functionName: 'getContribution',
       args: campaignId !== undefined && address ? [BigInt(campaignId), address] : undefined,
       query: { enabled: isConnected && !!address && campaignId !== undefined }
     });
 
     const { data: hasContributed } = useReadContract({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
       functionName: 'hasContributedToCampaign',
       args: campaignId !== undefined && address ? [BigInt(campaignId), address] : undefined,
       query: { enabled: isConnected && !!address && campaignId !== undefined }
@@ -115,9 +108,9 @@ export const useTrustLock = () => {
 
   const useMilestone = (campaignId?: number, milestoneId?: number) => {
     const { data: milestoneData, refetch: refetchMilestone } = useReadContract({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
-      functionName: 'getMilestone',
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
+      functionName: 'getMilestone', 
       args: campaignId !== undefined && milestoneId !== undefined 
         ? [BigInt(campaignId), BigInt(milestoneId)] 
         : undefined,
@@ -125,8 +118,8 @@ export const useTrustLock = () => {
     });
 
     const { data: votingResults, refetch: refetchVotingResults } = useReadContract({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
       functionName: 'getVotingResults',
       args: campaignId !== undefined && milestoneId !== undefined 
         ? [BigInt(campaignId), BigInt(milestoneId)] 
@@ -135,8 +128,8 @@ export const useTrustLock = () => {
     });
 
     const { data: hasVoted } = useReadContract({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
       functionName: 'hasVotedOnMilestone',
       args: campaignId !== undefined && milestoneId !== undefined && address
         ? [BigInt(campaignId), BigInt(milestoneId), address]
@@ -174,16 +167,16 @@ export const useTrustLock = () => {
 
   const useRefund = (campaignId?: number) => {
     const { data: refundAmount } = useReadContract({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
       functionName: 'getRefundAmount',
       args: campaignId !== undefined && address ? [BigInt(campaignId), address] : undefined,
       query: { enabled: isConnected && !!address && campaignId !== undefined }
     });
 
     const { data: hasRefundClaimed } = useReadContract({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
       functionName: 'hasRefundClaimed',
       args: campaignId !== undefined && address ? [BigInt(campaignId), address] : undefined,
       query: { enabled: isConnected && !!address && campaignId !== undefined }
@@ -221,8 +214,8 @@ export const useTrustLock = () => {
       const tokenAddress = params.acceptedToken || ethers.ZeroAddress;
 
       const tx = await writeContractAsync({
-        address: trustLockCoreAddress,
-        abi: trustLockCoreAbi,
+        address: TrustLockCoreAddress,
+        abi: TrustLockCoreABI,
         functionName: 'createCampaign',
         args: [
           params.title,
@@ -270,8 +263,8 @@ export const useTrustLock = () => {
         const amountWei = ethers.parseEther(amount);
         
         const tx = await writeContractAsync({
-          address: trustLockCoreAddress,
-          abi: trustLockCoreAbi,
+          address: TrustLockCoreAddress,
+          abi: TrustLockCoreABI,
           functionName: 'contribute',
           args: [BigInt(campaignId), BigInt(0)],
           value: amountWei,
@@ -283,8 +276,8 @@ export const useTrustLock = () => {
         const amountWei = ethers.parseEther(amount);
         
         const tx = await writeContractAsync({
-          address: trustLockCoreAddress,
-          abi: trustLockCoreAbi,
+          address: TrustLockCoreAddress,
+          abi: TrustLockCoreABI,
           functionName: 'contribute',
           args: [BigInt(campaignId), amountWei],
         });
@@ -324,8 +317,8 @@ export const useTrustLock = () => {
       setLoading(true);
 
       const tx = await writeContractAsync({
-        address: trustLockCoreAddress,
-        abi: trustLockCoreAbi,
+        address: TrustLockCoreAddress,
+        abi: TrustLockCoreABI,
         functionName: 'createMilestone',
         args: [address, BigInt(campaignId), description, BigInt(fundingPercentage)],
       });
@@ -364,8 +357,8 @@ export const useTrustLock = () => {
       setLoading(true);
 
       const tx = await writeContractAsync({
-        address: trustLockCoreAddress,
-        abi: trustLockCoreAbi,
+        address: TrustLockCoreAddress,
+        abi: TrustLockCoreABI,
         functionName: 'vote',
         args: [BigInt(campaignId), BigInt(milestoneId), support],
       });
@@ -403,8 +396,8 @@ export const useTrustLock = () => {
       setLoading(true);
 
       const tx = await writeContractAsync({
-        address: trustLockCoreAddress,
-        abi: trustLockCoreAbi,
+        address: TrustLockCoreAddress,
+        abi: TrustLockCoreABI,
         functionName: 'finalizeMilestone',
         args: [BigInt(campaignId), BigInt(milestoneId)],
       });
@@ -439,8 +432,8 @@ export const useTrustLock = () => {
       setLoading(true);
 
       const tx = await writeContractAsync({
-        address: trustLockCoreAddress,
-        abi: trustLockCoreAbi,
+        address: TrustLockCoreAddress,
+        abi: TrustLockCoreABI,
         functionName: 'claimRefund',
         args: [BigInt(campaignId)],
       });
@@ -515,8 +508,8 @@ export const useCampaignList = (campaignIds: number[]) => {
 
   const { data: campaignsData } = useReadContracts({
     contracts: campaignIds.map(id => ({
-      address: trustLockCoreAddress,
-      abi: trustLockCoreAbi,
+      address: TrustLockCoreAddress,
+      abi: TrustLockCoreABI,
       functionName: 'getCampaign',
       args: [BigInt(id)],
     })),

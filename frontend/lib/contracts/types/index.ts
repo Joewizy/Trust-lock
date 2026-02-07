@@ -91,40 +91,6 @@ export interface ClaimRefundParams {
   campaignId: number;
 }
 
-// ============ CONTRACT INTERFACES ============
-
-export interface TrustLockCoreContract {
-  createCampaign(params: CreateCampaignParams): Promise<number>;
-  contribute(params: ContributeParams): Promise<void>;
-  createMilestone(params: CreateMilestoneParams): Promise<void>;
-  vote(params: VoteParams): Promise<void>;
-  claimRefund(params: ClaimRefundParams): Promise<void>;
-  getCampaign(campaignId: number): Promise<Campaign>;
-  getMilestone(campaignId: number, milestoneId: number): Promise<Milestone>;
-  getContribution(campaignId: number, contributor: string): Promise<string>;
-  getContributors(campaignId: number): Promise<string[]>;
-  getCampaigns(): Promise<Campaign[]>;
-}
-
-export interface TrustLockCampaignManagerContract {
-  getCampaign(campaignId: number): Promise<Campaign>;
-  getContribution(campaignId: number, contributor: string): Promise<string>;
-  getContributors(campaignId: number): Promise<string[]>;
-  campaignCounter(): Promise<number>;
-}
-
-export interface TrustLockTreasuryContract {
-  claimRefund(campaignId: number, contributor: string): Promise<void>;
-  getRefundAmount(campaignId: number, contributor: string): Promise<string>;
-  totalProtocolFees(): Promise<string>;
-}
-
-export interface TrustLockVotingContract {
-  getMilestone(campaignId: number, milestoneId: number): Promise<Milestone>;
-  vote(campaignId: number, milestoneId: number, support: boolean): Promise<void>;
-  finalizeMilestone(campaignId: number, milestoneId: number): Promise<void>;
-}
-
 // ============ EVENT TYPES ============
 
 export interface CampaignCreatedEvent {
