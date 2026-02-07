@@ -219,4 +219,68 @@ contract TrustLockConfig is Ownable {
 
         emit ParamUpdated("batchUpdate", 0, block.timestamp);
     }
+
+    // ============ BATCH VIEW FUNCTIONS ============
+    
+    function getCampaignConfig() external view returns (
+        uint256 _minimumContribution,
+        uint256 _maxContributionPercentage,
+        uint256 _fundingDuration,
+        uint256 _projectMaxDuration,
+        uint256 _protocolFeePercent,
+        uint256 _minTitleLength,
+        uint256 _maxTitleLength,
+        uint256 _minDescriptionLength,
+        uint256 _maxDescriptionLength
+    ) {
+        return (
+            minimumContribution,
+            maxContributionPercentage,
+            fundingDuration,
+            projectMaxDuration,
+            protocolFeePercent,
+            minTitleLength,
+            maxTitleLength,
+            minDescriptionLength,
+            maxDescriptionLength
+        );
+    }
+
+    function getVotingConfig() external view returns (
+        uint256 _votingDuration,
+        uint256 _minMilestonePercent,
+        uint256 _maxMilestonePercent,
+        uint256 _firstMilestoneMax,
+        uint256 _majorityThreshold,
+        uint256 _maxConsecutiveFailures,
+        uint256 _maxTotalFailures
+    ) {
+        return (
+            votingDuration,
+            minMilestonePercent,
+            maxMilestonePercent,
+            firstMilestoneMax,
+            majorityThreshold,
+            maxConsecutiveFailures,
+            maxTotalFailures
+        );
+    }
+
+    function getCoreConfig() external view returns (
+        uint256 _minimumContribution,
+        uint256 _maxContributionPercentage,
+        uint256 _protocolFeePercent,
+        uint256 _votingDuration,
+        uint256 _minMilestonePercent,
+        uint256 _maxMilestonePercent
+    ) {
+        return (
+            minimumContribution,
+            maxContributionPercentage,
+            protocolFeePercent,
+            votingDuration,
+            minMilestonePercent,
+            maxMilestonePercent
+        );
+    }
 }
