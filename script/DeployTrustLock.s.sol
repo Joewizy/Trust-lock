@@ -53,6 +53,7 @@ contract DeployTrustLock is Script {
         console.log("Deployed Contracts");
         console.log("===========================================");
         console.log("TrustLockCore:", address(trustLock.core));
+        console.log("TrustLockConfig:", address(trustLock.config));
         console.log("CampaignManager:", address(trustLock.campaignManager));
         console.log("Voting:", address(trustLock.voting));
         console.log("Treasury:", address(trustLock.treasury));
@@ -73,6 +74,7 @@ contract DeployTrustLock is Script {
                     '"network":"', vm.toString(block.chainid), '",',
                     '"deployer":"', vm.toString(deployer), '",',
                     '"trustLockCore":"', vm.toString(address(trustLock.core)), '",',
+                    '"trustLockConfig":"', vm.toString(address(trustLock.config)), '",',
                     '"campaignManager":"', vm.toString(address(trustLock.campaignManager)), '",',
                     '"voting":"', vm.toString(address(trustLock.voting)), '",',
                     '"treasury":"', vm.toString(address(trustLock.treasury)), '",',

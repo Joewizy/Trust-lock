@@ -1,12 +1,12 @@
 {
     "network": "11155111",
     "deployer": "0xa2791e44234Dc9C96F260aD15fdD09Fe9B597FE1",
-    "trustLockCore": "0x94be75b500F882Ed1D1EE79ace2e9c68025656FE",
-    "campaignManager": "0xf9c4c8B278904528acc86dCFCdC8a7A07095D4c0",
-    "voting": "0x1cfbac739e53FA649AF38D797668270A88DfF08B",
-    "treasury": "0xFA6E8A06DCb2347FeB46880eD5307c8c18CA92cc",
+    "trustLockCore": "0xfA72e7FbD07ab4D3Ec1D15320fBb4b51606c1Ac0",
+    "campaignManager": "0xBD39A53be24457FE50f6D4F7a889f0E4f9Bb1Dcd",
+    "voting": "0xf1013F2aCd7CEDB3fa0E5175e807C34A6981A5C0",
+    "treasury": "0x586a61210a9a89C1B148C235Af3Ad94e671D8Ec5",
     "protocolFeeRecipient": "0xa2791e44234Dc9C96F260aD15fdD09Fe9B597FE1",
-    "blockNumber": 10211291,
-    "timestamp": 1770477348,
-    "deployedAt": "1770477348"
+    "blockNumber": 10211703,
+    "timestamp": 1770482412,
+    "deployedAt": "1770482412"
 }
