@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { getRaise, upsertRaise, type LocalRaise } from '@/lib/raise-storage';
+import { InlineToast } from '@/components/shared/inline-toast';
 
 const OWNER_ADDRESS = '0x123400000000000000000000000000000000abcd';
 
@@ -39,7 +41,17 @@ export default function ContributePage({ params }: { params: { id: string } }) {
   const { address } = useAccount();
   const { data: feeData, isLoading: feeLoading } = useFeeData();
 
-  const isOwner = address?.toLowerCase() === OWNER_ADDRESS.toLowerCase();
+  const [localRaise, setLocalRaise] = React.useState<LocalRaise | null>(null);
+  const [showToast, setShowToast] = React.useState(false);
+
+  React.useEffect(() => {
+    const storedRaise = getRaise(params.id);
+    setLocalRaise(storedRaise);
+  }, [params.id]);
+
+  const isOwner = address
+    ? address.toLowerCase() === (localRaise?.creator ?? OWNER_ADDRESS).toLowerCase()
+    : (localRaise?.creator ?? OWNER_ADDRESS).toLowerCase() === OWNER_ADDRESS.toLowerCase();
 
   // -------------------------------
   // State (single source of truth)
@@ -61,13 +73,37 @@ export default function ContributePage({ params }: { params: { id: string } }) {
 
   const totalUsd = amount + gasFeeUsd;
 
+  const handleContribute = () => {
+    if (!localRaise || amount <= 0) return;
+    if (isOwner) return;
+
+    const updatedRaise: LocalRaise = {
+      ...localRaise,
+      totalRaised: localRaise.totalRaised + amount,
+      state:
+        localRaise.totalRaised + amount >= localRaise.fundingGoal
+          ? 'active'
+          : localRaise.state,
+    };
+
+    upsertRaise(updatedRaise);
+    setLocalRaise(updatedRaise);
+    setShowToast(true);
+  };
+
   return (
     <PageShell>
+      <InlineToast
+        open={showToast}
+        onClose={() => setShowToast(false)}
+        title='Contribution recorded!'
+        description='Your support moved this raise closer to its goal.'
+      />
       <section className='grid gap-8 lg:grid-cols-[1.2fr_0.8fr]'>
         {/* ================= LEFT ================= */}
         <div className='space-y-5'>
           <Badge variant='secondary' className='w-fit'>
-            Contribute to OpenVote Registry
+            Contribute to {localRaise?.title ?? 'OpenVote Registry'}
           </Badge>
 
           <h1 className='text-3xl font-semibold sm:text-4xl font-[var(--font-display)]'>
@@ -197,10 +233,16 @@ export default function ContributePage({ params }: { params: { id: string } }) {
           </CardHeader>
 
           <CardContent className='space-y-4'>
-            <Progress value={62} />
+            <Progress
+              value={
+                localRaise && localRaise.fundingGoal > 0
+                  ? Math.min(100, (localRaise.totalRaised / localRaise.fundingGoal) * 100)
+                  : 62
+              }
+            />
 
             <div className='text-sm text-muted-foreground'>
-              $5,232 out of $8,500 raised
+              ${localRaise?.totalRaised.toLocaleString() ?? '5,232'} out of ${localRaise?.fundingGoal.toLocaleString() ?? '8,500'} raised
             </div>
 
             <Separator />
@@ -222,7 +264,7 @@ export default function ContributePage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            <Button className='w-full' disabled={isOwner || amount <= 0}>
+            <Button className='w-full' disabled={isOwner || amount <= 0} onClick={handleContribute}>
               Contribute to Raise
             </Button>
 

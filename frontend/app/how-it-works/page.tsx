@@ -41,7 +41,7 @@ export default function HowItWorks() {
           Milestone funding that feels fair, transparent, and immediate.
         </h1>
         <p className="max-w-2xl text-base text-muted-foreground">
-          RaiseBox keeps contributors and builders aligned. You plan milestones, collect
+          TRUSTLOCK keeps contributors and builders aligned. You plan milestones, collect
           funds in escrow, and release them only after the community approves your proof.
         </p>
       </section>
@@ -69,7 +69,7 @@ export default function HowItWorks() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-emerald-600" />
-              RaiseBox guarantees
+              TRUSTLOCK guarantees
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">

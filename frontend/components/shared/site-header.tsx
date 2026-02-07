@@ -21,7 +21,7 @@ export function SiteHeader() {
     <header className='relative z-10 w-full border-b border-transparent'>
       <div className='mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6'>
         <Link href='/' className='text-lg font-semibold tracking-tight'>
-          RaiseBox
+          TRUSTLOCK
         </Link>
         <nav className='hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex'>
           {navLinks.map((link) => (

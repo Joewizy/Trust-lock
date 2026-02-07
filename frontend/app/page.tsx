@@ -3,7 +3,7 @@ import { ArrowUpRight, Search } from "lucide-react"
 
 import { PageShell } from "@/components/shared/page-shell"
 import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -64,12 +64,17 @@ export default function Home() {
             Build with transparency. Fund work you can verify.
           </h1>
           <p className="max-w-xl text-base text-muted-foreground">
-            RaiseBox helps contributors coordinate milestone-based funding for ambitious
+            TRUSTLOCK helps contributors coordinate milestone-based funding for ambitious
             public projects. Track progress, vote on deliverables, and release funds
             only when outcomes are proven.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <Button>Start a Raise</Button>
+            <Link
+              href="/raise/create/basic"
+              className={cn(buttonVariants({ variant: "default" }))}
+            >
+              Start a Raise
+            </Link>
             <Link
               href="/how-it-works"
               className={cn(buttonVariants({ variant: "outline" }))}

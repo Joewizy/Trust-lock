@@ -19,7 +19,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: 'RaiseBox',
+  title: 'TRUSTLOCK',
   description: 'Create, fund, and coordinate milestone-based raises.',
 };
 

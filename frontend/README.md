@@ -1,4 +1,4 @@
-# TrustLock 🔒
+# TRUSTLOCK 🔒
 
 **Milestone-based decentralized crowdfunding with on-chain accountability**
 
@@ -6,9 +6,9 @@ Built for **HackMoney 2026**
 
 ---
 
-## What is TrustLock?
+## What is TRUSTLOCK?
 
-TrustLock solves the crowdfunding accountability problem. Instead of giving all funds upfront and hoping creators deliver, funds are released incrementally **only when contributors vote to approve milestones**.
+TRUSTLOCK solves the crowdfunding accountability problem. Instead of giving all funds upfront and hoping creators deliver, funds are released incrementally **only when contributors vote to approve milestones**.
 
 **The Problem:**
 - Traditional crowdfunding: creators get all money upfront, no accountability
@@ -23,7 +23,7 @@ TrustLock solves the crowdfunding accountability problem. Instead of giving all 
 
 ---
 
-## 🚀 How TrustLock Works: 4 Simple Steps
+## 🚀 How TRUSTLOCK Works: 4 Simple Steps
 
 ### **1️⃣ CREATE**
 As a creator, you **host a funding raise** by:
