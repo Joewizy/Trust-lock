@@ -6,6 +6,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useENS } from '@/lib/hooks/useEns';
 
 const navLinks = [
   { id: 1, label: 'Discover', href: '/' },
@@ -14,6 +15,8 @@ const navLinks = [
 ];
 
 export function SiteHeader() {
+  const { ensName, ensAvatar, hasENS, isLoading } = useENS();
+
   return (
     <header className='relative z-10 w-full border-b border-transparent'>
       <div className='mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6'>
@@ -57,8 +60,16 @@ export function SiteHeader() {
                   size='sm'
                   onClick={openAccountModal}
                   className='hidden items-center gap-2 rounded-full border-border/70 bg-white/80 text-xs font-medium text-muted-foreground shadow-sm md:inline-flex'>
-                  <Wallet className='h-3.5 w-3.5' />
-                  {account.displayName}
+                  {hasENS && ensAvatar ? (
+                    <img 
+                      src={ensAvatar} 
+                      alt={ensName || 'Avatar'} 
+                      className='h-3.5 w-3.5 rounded-full'
+                    />
+                  ) : (
+                    <Wallet className='h-3.5 w-3.5' />
+                  )}
+                  {hasENS && ensName ? ensName : account.displayName}
                 </Button>
               );
             }}
