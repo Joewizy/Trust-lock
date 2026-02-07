@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {TrustLockCampaignManager} from "../src/TrustLockCampaignManager.sol";
 import {TrustLockVoting} from "../src/TrustLockVoting.sol";
 import {TrustLockCore} from "../src/TrustLockCore.sol";
+import {TrustLockDeployment} from "../lib/TrustLockDeployment.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockERC20 is ERC20 {
@@ -25,6 +26,7 @@ contract TrustLockCoreTest is Test {
     address contributor1 = makeAddr("contributor1");
     address contributor2 = makeAddr("contributor2");
     address contributor3 = makeAddr("contributor3");
+    address deployer = makeAddr("deployer");
     address protocolFeeRecipient = makeAddr("protocolFeeRecipient");
 
     uint256 initialContribution = 0.001 ether;
@@ -35,7 +37,11 @@ contract TrustLockCoreTest is Test {
     event ContributionReceived(uint256 indexed campaignId, address indexed contributor, uint256 amount, bool isEth);
 
     function setUp() public {
-        trustLock = new TrustLockCore(protocolFeeRecipient);
+        // Deploy using library for consistency
+        TrustLockDeployment.Contracts memory deployed = 
+            TrustLockDeployment.deployDefault(protocolFeeRecipient);
+        trustLock = deployed.core;
+        
         token = new MockERC20();
 
         // Fund test accounts

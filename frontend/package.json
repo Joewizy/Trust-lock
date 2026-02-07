@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync-abi": "cd .. && ./script/sync-abi.sh"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.10",

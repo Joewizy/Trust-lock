@@ -68,8 +68,29 @@ contract TrustLockCore is Pausable, Ownable {
     constructor(address _protocolFeeRecipient) Ownable(msg.sender) {
         if (_protocolFeeRecipient == address(0)) revert InvalidAddress();
         protocolFeeRecipient = _protocolFeeRecipient;
+    }
+
+    /**
+     * @notice Set the addresses of the deployed contracts
+     * @dev Should be called immediately after deployment
+     * @param _campaignManager Address of the CampaignManager contract
+     * @param _voting Address of the Voting contract  
+     * @param _treasury Address of the Treasury contract
+     */
+    function setContractAddresses(
+        address _campaignManager,
+        address _voting,
+        address payable _treasury
+    ) external onlyOwner {
+        if (_campaignManager == address(0) || _voting == address(0) || _treasury == address(0)) {
+            revert InvalidAddress();
+        }
         
-        _deployContracts();
+        campaignManager = TrustLockCampaignManager(_campaignManager);
+        voting = TrustLockVoting(_voting);
+        treasury = TrustLockTreasury(_treasury);
+        
+        emit ContractsDeployed(_campaignManager, _voting, _treasury);
     }
 
     // ============ ADMIN MANAGEMENT ============

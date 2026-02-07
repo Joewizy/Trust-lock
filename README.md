@@ -320,6 +320,23 @@ forge test --gas-report
 forge coverage
 ```
 
+### ABI Synchronization
+
+After building contracts (forge build), sync the ABIs to the frontend:
+
+```bash
+# From frontend directory
+npm run sync-abi
+
+# Or from root directory
+./scripts/sync-abi.sh
+```
+
+This script:
+- Copies compiled contract ABIs from `out/` to `frontend/lib/contracts/abi/generated/`
+- Makes them available for frontend integration
+- Should be run after any contract changes
+
 ### Deploy
 
 ```bash
