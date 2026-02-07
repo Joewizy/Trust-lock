@@ -6,6 +6,7 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ITrustLockCore} from "./interfaces/ITrustLockCore.sol";
 import {ITrustLockTreasury} from "./interfaces/ITrustLockTreasury.sol";
+import {TrustLockConfig} from "./TrustLockConfig.sol";
 
 /**
  * @title TrustLockCampaignManager
@@ -49,19 +50,11 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
     address public coreContract;
     bool private _initialized;
     
-    // Constants
-    uint256 private constant BASIS_POINT = 10_000;
-    uint256 private constant MINIMUM_CONTRIBUTION = 0.001 ether;
-    uint256 private constant MAX_CONTRIBUTION_PERCENTAGE = 200; 
-    uint256 private constant FUNDING_DURATION = 4 weeks;
-    uint256 private constant PROJECT_MAX_DURATION = 52 weeks;
-    uint256 public constant PROTOCOL_FEE_PERCENT = 2; // 2% fee
+    // Configuration contract
+    TrustLockConfig public config;
     
-    // String validation constants
-    uint256 private constant MIN_TITLE_LENGTH = 3;
-    uint256 private constant MAX_TITLE_LENGTH = 100;
-    uint256 private constant MIN_DESCRIPTION_LENGTH = 10;
-    uint256 private constant MAX_DESCRIPTION_LENGTH = 1000; 
+    // Constants
+    uint256 private constant BASIS_POINT = 10_000; 
     
     // Protocol state
     uint256 public campaignCounter;
@@ -150,9 +143,10 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
 
     // ============ CONSTRUCTOR ============
     
-    constructor(address _coreContract) Ownable(msg.sender) {
-        if (_coreContract == address(0)) revert InvalidAddress();
+    constructor(address _coreContract, address _config) Ownable(msg.sender) {
+        if (_coreContract == address(0) || _config == address(0)) revert InvalidAddress();
         coreContract = _coreContract;
+        config = TrustLockConfig(_config);
     }
 
     // ============ INITIALIZATION ============
@@ -211,15 +205,15 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         address _creator
     ) external whenNotPaused returns (uint256) {
         // Validate strings
-        if (!_isValidString(_title, MIN_TITLE_LENGTH, MAX_TITLE_LENGTH)) {
+        if (!_isValidString(_title, config.minTitleLength(), config.maxTitleLength())) {
             revert InvalidStringLength();
         }
-        if (!_isValidString(_description, MIN_DESCRIPTION_LENGTH, MAX_DESCRIPTION_LENGTH)) {
+        if (!_isValidString(_description, config.minDescriptionLength(), config.maxDescriptionLength())) {
             revert InvalidStringLength();
         }
         
-        if (_fundingGoal < MINIMUM_CONTRIBUTION) revert FundingGoalTooLow();
-        if (_projectDuration > PROJECT_MAX_DURATION) revert ProjectDurationTooLong();
+        if (_fundingGoal < config.minimumContribution()) revert FundingGoalTooLow();
+        if (_projectDuration > config.projectMaxDuration()) revert ProjectDurationTooLong();
 
         // Validate token acceptance by checking with Core contract
         if (!_acceptsEth) {
@@ -235,7 +229,7 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         Campaign storage campaign = campaigns[campaignId];
         campaign.creator = _creator;
         campaign.fundingGoal = _fundingGoal;
-        campaign.fundingDeadline = uint64(block.timestamp + FUNDING_DURATION);
+        campaign.fundingDeadline = uint64(block.timestamp + config.fundingDuration());
         campaign.projectDuration = uint64(_projectDuration);
         campaign.createdAt = uint64(block.timestamp);
         campaign.state = CampaignState.FUNDING;
@@ -270,10 +264,10 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         if (campaign.state != CampaignState.FUNDING) revert CanOnlyContributeInFundingState();
         if (block.timestamp > campaign.fundingDeadline) revert FundingPeriodEnded();
         if (campaign.creator == _contributor) revert CreatorCannotContribute();
-        if (_amount < MINIMUM_CONTRIBUTION) revert ContributionTooLow();
+        if (_amount < config.minimumContribution()) revert ContributionTooLow();
 
         // Check max contribution per user (2% of funding goal)
-        uint256 maxContribution = (campaign.fundingGoal * MAX_CONTRIBUTION_PERCENTAGE) / BASIS_POINT;
+        uint256 maxContribution = (campaign.fundingGoal * config.maxContributionPercentage()) / BASIS_POINT;
         uint256 currentContribution = contributions[_campaignId][_contributor];
         if (currentContribution + _amount > maxContribution) {
             revert MaxContributionExceeded(maxContribution, currentContribution + _amount);
@@ -298,7 +292,7 @@ contract TrustLockCampaignManager is Ownable, Pausable, ReentrancyGuard {
         // Check if funding goal reached
         if (campaign.totalRaised >= campaign.fundingGoal && campaign.availableFunds == 0) {
             // Compute fee ONCE and store permanently
-            uint256 fee = (campaign.totalRaised * PROTOCOL_FEE_PERCENT) / 100;
+            uint256 fee = (campaign.totalRaised * config.protocolFeePercent()) / 100;
             
             campaign.protocolFee = fee;
             campaign.availableFunds = campaign.totalRaised - fee;

@@ -5,6 +5,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ITrustLockTreasury } from "./interfaces/ITrustLockTreasury.sol";
 import { TrustLockCampaignManager } from "./TrustLockCampaignManager.sol";
+import { TrustLockConfig } from "./TrustLockConfig.sol";
 
 /**
  * @title TrustLockVoting
@@ -38,14 +39,8 @@ contract TrustLockVoting is Ownable, Pausable {
     address public treasuryContract;
     bool private _initialized;
     
-    // Constants
-    uint256 public constant VOTING_DURATION = 7 days;
-    uint256 public constant MIN_MILESTONE_PERCENT = 5;
-    uint256 public constant MAX_MILESTONE_PERCENT = 25;
-    uint256 public constant FIRST_MILESTONE_MAX = 10;
-    uint256 public constant MAJORITY_THRESHOLD = 51;
-    uint256 public constant MAX_CONSECUTIVE_FAILURES = 3;  
-    uint256 public constant MAX_TOTAL_FAILURES = 5;       
+    // Configuration contract
+    TrustLockConfig public config;       
     
     // Milestone mappings
     mapping(uint256 => mapping(uint256 => Milestone)) public milestones;
@@ -122,9 +117,10 @@ contract TrustLockVoting is Ownable, Pausable {
      * @param _campaignManager Address of TrustLockCampaignManager
      * @dev Treasury address set via initialize() after deployment
      */
-    constructor(address _campaignManager) Ownable(msg.sender) {
-        if (_campaignManager == address(0)) revert InvalidAddress();
+    constructor(address _campaignManager, address _config) Ownable(msg.sender) {
+        if (_campaignManager == address(0) || _config == address(0)) revert InvalidAddress();
         campaignManager = _campaignManager;
+        config = TrustLockConfig(_config);
     }
 
     // ============ ADMIN MANAGEMENT ============
@@ -176,15 +172,15 @@ contract TrustLockVoting is Ownable, Pausable {
         }
         
         // Check if campaign has exceeded failure thresholds
-        if (campaign.consecutiveFailedMilestones >= MAX_CONSECUTIVE_FAILURES) {
+        if (campaign.consecutiveFailedMilestones >= config.maxConsecutiveFailures()) {
             revert TooManyFailedMilestones();
         }
-        if (campaign.totalFailedMilestones >= MAX_TOTAL_FAILURES) {
+        if (campaign.totalFailedMilestones >= config.maxTotalFailures()) {
             revert TooManyFailedMilestones();
         }
         
         // Validate percentage: must be multiple of 5 between 5 and 25
-        if (_fundingPercentage < MIN_MILESTONE_PERCENT || _fundingPercentage > MAX_MILESTONE_PERCENT) {
+        if (_fundingPercentage < config.minMilestonePercent() || _fundingPercentage > config.maxMilestonePercent()) {
             revert InvalidMilestonePercentage();
         }
         if (_fundingPercentage % 5 != 0) {
@@ -192,7 +188,7 @@ contract TrustLockVoting is Ownable, Pausable {
         }
 
         // First milestone can only request up to 10%
-        if (campaign.milestoneCount == 0 && _fundingPercentage > FIRST_MILESTONE_MAX) {
+        if (campaign.milestoneCount == 0 && _fundingPercentage > config.firstMilestoneMax()) {
             revert InvalidMilestonePercentage();
         }
 
@@ -237,7 +233,7 @@ contract TrustLockVoting is Ownable, Pausable {
 
         // Validations
         if (hasVoted[_campaignId][_milestoneId][_voter]) revert AlreadyVoted();
-        if (block.timestamp > milestone.voteStartTime + VOTING_DURATION) revert VotingEnded();
+        if (block.timestamp > milestone.voteStartTime + config.votingDuration()) revert VotingEnded();
         if (milestone.state != MilestoneState.VOTING) {
             revert MilestoneNotInVotingPeriod();
         }
@@ -271,14 +267,14 @@ contract TrustLockVoting is Ownable, Pausable {
         Milestone storage milestone = milestones[_campaignId][_milestoneId];
 
         if (milestone.state != MilestoneState.VOTING) revert MilestoneNotInVotingPeriod();
-        if (block.timestamp <= milestone.voteStartTime + VOTING_DURATION) revert VotingHasNotEnded();
+        if (block.timestamp <= milestone.voteStartTime + config.votingDuration()) revert VotingHasNotEnded();
 
         uint256 contributorCount = manager.getNoOfContributors(_campaignId);
         uint256 totalVotes = milestone.totalVotes;
 
         // Optimized calculations: 25% minimum participation
         bool participationMet = totalVotes * 4 >= contributorCount;
-        bool approved = participationMet && (milestone.votesFor * 100 >= totalVotes * MAJORITY_THRESHOLD);
+        bool approved = participationMet && (milestone.votesFor * 100 >= totalVotes * config.majorityThreshold());
 
         if (approved) {
             milestone.state = MilestoneState.APPROVED;
@@ -316,7 +312,7 @@ contract TrustLockVoting is Ownable, Pausable {
             manager.incrementTotalFailedMilestones(_campaignId);
             
             // Check if exceeded either failure threshold (using incremented values)
-            if (currentConsecutiveFailures + 1 >= MAX_CONSECUTIVE_FAILURES || currentTotalFailures + 1 >= MAX_TOTAL_FAILURES) {
+            if (currentConsecutiveFailures + 1 >= config.maxConsecutiveFailures() || currentTotalFailures + 1 >= config.maxTotalFailures()) {
                 // Campaign has failed
                 manager.updateCampaignState(_campaignId, TrustLockCampaignManager.CampaignState.FAILED);
             } else {
@@ -326,26 +322,15 @@ contract TrustLockVoting is Ownable, Pausable {
         }
     }
 
-    // ============ VIEW FUNCTIONS ============
-    
-    function getMilestone(uint256 _campaignId, uint256 _milestoneId) 
-        external 
-        view 
-        campaignExists(_campaignId) 
-        returns (Milestone memory) 
-    {
-        return milestones[_campaignId][_milestoneId];
-    }
-
-    function hasVotedOnMilestone(uint256 _campaignId, uint256 _milestoneId, address _voter) 
-        external 
-        view 
-        campaignExists(_campaignId) 
-        returns (bool) 
-    {
-        return hasVoted[_campaignId][_milestoneId][_voter];
-    }
-
+    /**
+     * @notice Get the voting results of a milestone
+     * @param _campaignId The campaign ID
+     * @param _milestoneId The milestone ID
+     * @return votesFor The number of votes for the milestone
+     * @return votesAgainst The number of votes against the milestone
+     * @return totalVotes The total number of votes
+     * @return approved Whether the milestone was approved
+     */
     function getVotingResults(uint256 _campaignId, uint256 _milestoneId) 
         external 
         view 
@@ -363,6 +348,37 @@ contract TrustLockVoting is Ownable, Pausable {
         uint256 contributorCount = contributors.length;
         
         bool participationMet = totalVotes * 4 >= contributorCount;
-        approved = participationMet && votesFor * 100 >= totalVotes * MAJORITY_THRESHOLD;
+        approved = participationMet && votesFor * 100 >= totalVotes * config.majorityThreshold();
+    }
+
+    /**
+     * @notice Get milestone details
+     * @param _campaignId The campaign ID
+     * @param _milestoneId The milestone ID
+     * @return milestone The milestone details
+     */
+    function getMilestone(uint256 _campaignId, uint256 _milestoneId) 
+        external 
+        view 
+        campaignExists(_campaignId) 
+        returns (Milestone memory) 
+    {
+        return milestones[_campaignId][_milestoneId];
+    }
+
+    /**
+     * @notice Check if a user has voted on a milestone
+     * @param _campaignId The campaign ID
+     * @param _milestoneId The milestone ID
+     * @param _voter The voter address
+     * @return voted Whether the voter has voted
+     */
+    function hasVotedOnMilestone(uint256 _campaignId, uint256 _milestoneId, address _voter) 
+        external 
+        view 
+        campaignExists(_campaignId) 
+        returns (bool) 
+    {
+        return hasVoted[_campaignId][_milestoneId][_voter];
     }
 }

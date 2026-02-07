@@ -5,6 +5,7 @@ import {TrustLockCore} from "../src/TrustLockCore.sol";
 import {TrustLockCampaignManager} from "../src/TrustLockCampaignManager.sol";
 import {TrustLockVoting} from "../src/TrustLockVoting.sol";
 import {TrustLockTreasury} from "../src/TrustLockTreasury.sol";
+import {TrustLockConfig} from "../src/TrustLockConfig.sol";
 
 /**
  * @title TrustLockDeployment
@@ -20,6 +21,7 @@ library TrustLockDeployment {
         TrustLockCampaignManager campaignManager;
         TrustLockVoting voting;
         TrustLockTreasury treasury;
+        TrustLockConfig config;
     }
     
     struct Config {
@@ -84,30 +86,37 @@ library TrustLockDeployment {
         private 
         returns (Contracts memory contracts) 
     {
-        // 1. Deploy Core (orchestrator)
+        // 1. Deploy Config first
+        contracts.config = new TrustLockConfig(config.protocolFeeRecipient);
+        if (address(contracts.config) == address(0)) {
+            revert DeploymentFailed("Config deployment failed");
+        }
+
+        // 2. Deploy Core (orchestrator)
         contracts.core = new TrustLockCore(config.protocolFeeRecipient);
         if (address(contracts.core) == address(0)) {
             revert DeploymentFailed("Core deployment failed");
         }
 
-        // 2. Deploy CampaignManager
-        contracts.campaignManager = new TrustLockCampaignManager(address(contracts.core));
+        // 3. Deploy CampaignManager
+        contracts.campaignManager = new TrustLockCampaignManager(address(contracts.core), address(contracts.config));
         if (address(contracts.campaignManager) == address(0)) {
             revert DeploymentFailed("CampaignManager deployment failed");
         }
 
-        // 3. Deploy Voting
-        contracts.voting = new TrustLockVoting(address(contracts.campaignManager));
+        // 4. Deploy Voting
+        contracts.voting = new TrustLockVoting(address(contracts.campaignManager), address(contracts.config));
         if (address(contracts.voting) == address(0)) {
             revert DeploymentFailed("Voting deployment failed");
         }
 
-        // 4. Deploy Treasury
+        // 5. Deploy Treasury
         contracts.treasury = new TrustLockTreasury(
             address(contracts.campaignManager),
             address(contracts.voting),
             address(contracts.core),
-            config.protocolFeeRecipient
+            config.protocolFeeRecipient,
+            address(contracts.config)
         );
         if (address(contracts.treasury) == address(0)) {
             revert DeploymentFailed("Treasury deployment failed");

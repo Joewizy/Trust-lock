@@ -411,34 +411,6 @@ contract TrustLockCore is Pausable, Ownable {
         totalProtocolFees = treasury.totalProtocolFees();
     }
 
-    // ============ INTERNAL FUNCTIONS ============
-    
-    /**
-     * @notice Deploy three specialized contracts with clean architecture
-     * @dev Uses initialize pattern to avoid circular dependencies
-     */
-    function _deployContracts() internal {
-        campaignManager = new TrustLockCampaignManager(address(this));
-        if (address(campaignManager) == address(0)) revert DeploymentFailed();
-        
-        voting = new TrustLockVoting(address(campaignManager));
-        if (address(voting) == address(0)) revert DeploymentFailed();
-        
-        treasury = new TrustLockTreasury(
-            address(campaignManager), 
-            address(voting), 
-            address(this),
-            protocolFeeRecipient
-        );
-        if (address(treasury) == address(0)) revert DeploymentFailed();
-        
-        // Initialize contracts with their dependencies
-        campaignManager.initialize(address(voting), address(treasury));
-        voting.initialize(address(treasury));
-        
-        emit ContractsDeployed(address(campaignManager), address(voting), address(treasury));
-    }
-
     // ============ RECEIVE FUNCTION ============
     
     receive() external payable {

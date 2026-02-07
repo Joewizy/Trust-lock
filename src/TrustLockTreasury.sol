@@ -7,6 +7,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { TrustLockCampaignManager } from "./TrustLockCampaignManager.sol";
+import { TrustLockConfig } from "./TrustLockConfig.sol";
 
 /**
  * @title TrustLockTreasury
@@ -24,8 +25,8 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
     address public coreContract;
     address public protocolFeeRecipient;
     
-    // Constants
-    uint256 public constant PROTOCOL_FEE_PERCENT = 2;
+    // Configuration contract
+    TrustLockConfig public config;
     
     // Protocol state
     uint256 public totalProtocolFees;
@@ -88,8 +89,8 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
 
     // ============ CONSTRUCTOR ============
     
-    constructor(address _campaignManager, address _votingContract, address _coreContract, address _protocolFeeRecipient) Ownable(msg.sender) {
-        if (_campaignManager == address(0) || _votingContract == address(0) || _coreContract == address(0) || _protocolFeeRecipient == address(0)) {
+    constructor(address _campaignManager, address _votingContract, address _coreContract, address _protocolFeeRecipient, address _config) Ownable(msg.sender) {
+        if (_campaignManager == address(0) || _votingContract == address(0) || _coreContract == address(0) || _protocolFeeRecipient == address(0) || _config == address(0)) {
             revert InvalidAddress();
         }
 
@@ -97,6 +98,7 @@ contract TrustLockTreasury is Ownable, Pausable, ReentrancyGuard {
         votingContract = _votingContract;
         coreContract = _coreContract;
         protocolFeeRecipient = _protocolFeeRecipient;
+        config = TrustLockConfig(_config);
     }
 
     // ============ ADMIN MANAGEMENT ============
