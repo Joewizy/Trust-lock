@@ -46,9 +46,6 @@ contract DeployTrustLock is Script {
 
         // Save deployment info to JSON
         _saveDeploymentInfo(trustLock, deployer, protocolFeeRecipient);
-
-        console.log("");
-        console.log("Deployment verified successfully!");
     }
 
     function _logDeployment(TrustLockDeployment.Contracts memory trustLock) internal view {
