@@ -374,14 +374,6 @@ forge script script/DeployTrustLock.s.sol \
 
 ---
 
-If you want, I can:
-
-* format this as **ETHGlobal submission markdown**
-* add **verified badges / constructor args notes**
-* include **quick “what each contract does” one-liners**
-
-Just say the word.
-
 ## Team
 
 [Daniel Ochoja](https://github.com/Ochoja) for **ETHGlobal HackMoney 2026**
