@@ -353,16 +353,34 @@ forge script script/DeployTrustLock.s.sol \
 
 ---
 
-## Contract Addresses
+## 🔗 Contract Addresses
 
-**Testnet (Sepolia):**
-- TrustLockCore: `[Coming Soon]`
-- CampaignManager: `[Coming Soon]`
-- Voting: `[Coming Soon]`
-- Treasury: `[Coming Soon]`
+### **Testnet (Sepolia – Chain ID: 11155111)**
+
+* **TrustLockCore**
+  [https://sepolia.etherscan.io/address/0xfA72e7FbD07ab4D3Ec1D15320fBb4b51606c1Ac0](https://sepolia.etherscan.io/address/0xfA72e7FbD07ab4D3Ec1D15320fBb4b51606c1Ac0)
+
+* **CampaignManager**
+  [https://sepolia.etherscan.io/address/0xBD39A53be24457FE50f6D4F7a889f0E4f9Bb1Dcd](https://sepolia.etherscan.io/address/0xBD39A53be24457FE50f6D4F7a889f0E4f9Bb1Dcd)
+
+* **Voting**
+  [https://sepolia.etherscan.io/address/0xf1013F2aCd7CEDB3fa0E5175e807C34A6981A5C0](https://sepolia.etherscan.io/address/0xf1013F2aCd7CEDB3fa0E5175e807C34A6981A5C0)
+
+* **Treasury**
+  [https://sepolia.etherscan.io/address/0x586a61210a9a89C1B148C235Af3Ad94e671D8Ec5](https://sepolia.etherscan.io/address/0x586a61210a9a89C1B148C235Af3Ad94e671D8Ec5)
+
+* **Faucet Token (TLT)**
+  [https://sepolia.etherscan.io/address/0x4DA2aabeD46a70e266b1231fa12bAb2719158652](https://sepolia.etherscan.io/address/0x4DA2aabeD46a70e266b1231fa12bAb2719158652)
 
 ---
 
+If you want, I can:
+
+* format this as **ETHGlobal submission markdown**
+* add **verified badges / constructor args notes**
+* include **quick “what each contract does” one-liners**
+
+Just say the word.
 
 ## Team
 
