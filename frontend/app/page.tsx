@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import { ArrowUpRight, Search, Droplet } from "lucide-react"
 
@@ -88,69 +90,37 @@ export default function Home() {
             </Link>
           </div>
         </div>
-        <Card className="bg-white/70">
-          <CardHeader>
-            <CardTitle>Search raises</CardTitle>
-            <CardDescription>
-              Find active raises, creators, and themes to support.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-3.5 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-10" placeholder="Search for a raise" />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <Badge key={category} variant="outline">
-                  {category}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Faucet Section */}
-      {address && (
-        <section className="mt-8">
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Droplet className="h-5 w-5 text-blue-600" />
+        {/* Faucet Section - moved to right column */}
+        {address && (
+          <Card className="bg-white/70">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <Droplet className="h-5 w-5" />
                 Get Test Tokens
               </CardTitle>
               <CardDescription>
                 Claim free TLT tokens to test the platform
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex items-center justify-between">
+            <CardContent className="space-y-4 text-center">
               <div>
                 <p className="text-sm text-muted-foreground">Your Balance</p>
-                <p className="text-2xl font-bold text-blue-900">
+                <p className="text-2xl font-bold">
                   {parseFloat(tltBalance).toFixed(2)} <span className="text-lg text-muted-foreground">TLT</span>
                 </p>
               </div>
-              <div className="text-right">
-                {canClaim ? (
-                  <Button onClick={claimTokens} className="bg-blue-600 hover:bg-blue-700">
-                    <Droplet className="mr-2 h-4 w-4" />
-                    Claim Tokens
-                  </Button>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    <p>Claim available in 24h</p>
-                    <Link href="/faucet" className="text-blue-600 hover:underline text-xs">
-                      View faucet →
-                    </Link>
-                  </div>
-                )}
+              <div>
+                <Link href="/faucet" className={cn(buttonVariants({ variant: "default" }), "w-full")}>
+                  <Droplet className="mr-2 h-4 w-4" />
+                  {canClaim ? "Claim Tokens" : "View Faucet"}
+                </Link>
               </div>
             </CardContent>
           </Card>
-        </section>
-      )}
+        )}
+      </section>
 
+      
       <section className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div className="col-span-full text-center text-sm text-muted-foreground mb-4">
           Example campaigns - Visit <Link href="/raises" className="underline">raises</Link> to see live campaigns on the blockchain
