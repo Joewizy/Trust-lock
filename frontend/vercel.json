@@ -1,9 +1,12 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "framework": "nextjs",
   "build": {
     "env": {
       "SKIP_LINT": "true",
       "SKIP_BUILD_TSC": "true"
     }
-  },
-  "buildCommand": "npm run build"
+  }
 }

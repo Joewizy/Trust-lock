@@ -3,7 +3,6 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { toast } from 'react-hot-toast';
 import { TrustLockCoreAddress, TrustLockCoreABI } from '../contracts/abi/core';
 import { useUserContributions } from './useUserActivity';
-import type { Campaign } from '../contracts/types';
 
 export interface Milestone {
   id: number;
