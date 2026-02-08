@@ -19,12 +19,19 @@ import { useCampaign } from '@/lib/hooks/useTrustLock';
 import { CampaignState } from '@/lib/contracts/types';
 
 export default function VotePage({ params }: { params: { id: string } }) {
-  const basePath = `/raise/${params.id}`;
+  const routeParams = useParams();
+  const basePath = `/raise/${routeParams.id}`;
   const router = useRouter();
   const { address, isConnected } = useAccount();
-  const campaignId = params.id ? parseInt(params.id) : undefined;
+  const campaignId = routeParams.id ? parseInt(routeParams.id as string) : undefined;
   
   const { campaign, isLoading: isCampaignLoading } = useCampaign(campaignId);
+  
+  // Debug logging
+  console.log('VotePage - Campaign ID:', campaignId, 'from params:', routeParams.id);
+  console.log('VotePage - Campaign data:', campaign);
+  console.log('VotePage - Campaign loading:', isCampaignLoading);
+  
   const { 
     milestones, 
     hasContributed, 
@@ -122,7 +129,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
             Only contributors to this campaign can vote on milestones. 
             Contribute to the campaign to gain voting rights.
           </p>
-          <Link href={`/raise/${params.id}/contribute`}>
+          <Link href={`/raise/${routeParams.id}/contribute`}>
             <Button>Contribute to Campaign</Button>
           </Link>
         </div>
@@ -201,73 +208,75 @@ export default function VotePage({ params }: { params: { id: string } }) {
                 </div>
               </CardHeader>
               
-              {milestone.status === 'voting' && (
-                <CardContent className='space-y-4'>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Voting Progress</span>
-                      <span className="font-semibold">
-                        {milestone.votesFor + milestone.votesAgainst} votes
-                      </span>
+              <CardContent className='space-y-4'>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Voting Progress</span>
+                    <span className="font-semibold">
+                      {milestone.votesFor + milestone.votesAgainst} votes
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <div className="text-xs text-green-600">For ({milestone.votesFor})</div>
+                      <Progress 
+                        value={milestone.votesFor + milestone.votesAgainst > 0 
+                          ? (milestone.votesFor / (milestone.votesFor + milestone.votesAgainst)) * 100 
+                          : 0} 
+                        className="h-2 bg-green-100"
+                      />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <div className="text-xs text-green-600">For ({milestone.votesFor})</div>
-                        <Progress 
-                          value={(milestone.votesFor / (milestone.votesFor + milestone.votesAgainst)) * 100} 
-                          className="h-2 bg-green-100"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-xs text-red-600">Against ({milestone.votesAgainst})</div>
-                        <Progress 
-                          value={(milestone.votesAgainst / (milestone.votesFor + milestone.votesAgainst)) * 100} 
-                          className="h-2 bg-red-100"
-                        />
-                      </div>
+                    <div className="space-y-1">
+                      <div className="text-xs text-red-600">Against ({milestone.votesAgainst})</div>
+                      <Progress 
+                        value={milestone.votesFor + milestone.votesAgainst > 0 
+                          ? (milestone.votesAgainst / (milestone.votesFor + milestone.votesAgainst)) * 100 
+                          : 0} 
+                        className="h-2 bg-red-100"
+                      />
                     </div>
                   </div>
-                  
-                  <Separator />
-                  
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-sm text-muted-foreground">
-                      {milestone.hasVoted ? (
-                        <span className="text-amber-600">You have already voted on this milestone</span>
-                      ) : canVote ? (
-                        <span>Review the milestone proof before voting</span>
-                      ) : (
-                        <span>Connect wallet to vote</span>
-                      )}
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-3">
-                      <Link href={basePath} className={cn(buttonVariants({ variant: 'ghost' }))}>
-                        Back to raise
-                      </Link>
-                      {!milestone.hasVoted && canVote && (
-                        <>
-                          <Button 
-                            variant='outline' 
-                            onClick={() => handleVote(milestone, false)}
-                            disabled={isVoting}
-                          >
-                            <XCircle className="mr-2 h-4 w-4" />
-                            No, reject
-                          </Button>
-                          <Button 
-                            onClick={() => handleVote(milestone, true)}
-                            disabled={isVoting}
-                          >
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Yes, approve
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm text-muted-foreground">
+                    {milestone.hasVoted ? (
+                      <span className="text-amber-600">You have already voted on this milestone</span>
+                    ) : canVote ? (
+                      <span>Review milestone proof before voting</span>
+                    ) : (
+                      <span>Connect wallet to vote</span>
+                    )}
                   </div>
-                </CardContent>
-              )}
+                  
+                  <div className="flex flex-wrap gap-3">
+                    <Link href={basePath} className={cn(buttonVariants({ variant: 'ghost' }))}>
+                      Back to raise
+                    </Link>
+                    {canVote && !milestone.hasVoted && (
+                      <>
+                        <Button 
+                          variant='outline' 
+                          onClick={() => handleVote(milestone, false)}
+                          disabled={isVoting}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          No, reject
+                        </Button>
+                        <Button 
+                          onClick={() => handleVote(milestone, true)}
+                          disabled={isVoting}
+                        >
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Yes, approve
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
             </Card>
           ))
         )}
