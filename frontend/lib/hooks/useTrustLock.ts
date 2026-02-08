@@ -279,7 +279,7 @@ export const useTrustLock = () => {
 
       const tokenAddress = params.acceptsEth ? ethers.ZeroAddress : FaucetTokenAddress;
       const fundingGoalWei = ethers.parseEther(params.fundingGoal);
-      const durationSeconds = params.projectDuration * 7 * 24 * 60 * 60;
+      const durationSeconds = params.projectDuration; // Already in seconds, don't multiply!
 
       const tx = await writeContractAsync({
         address: TrustLockCoreAddress,

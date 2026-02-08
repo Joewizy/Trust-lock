@@ -72,6 +72,17 @@ export default function CreateRaiseBasic() {
   }, [title, description, fundingGoal, durationDays, selectedToken, address]);
 
   const validateForm = () => {
+    console.log('Validating form:', {
+      title,
+      description,
+      fundingGoal,
+      durationDays,
+      hasENS,
+      titleLength: title.length,
+      descriptionLength: description.length,
+      fundingGoalNum: Number(fundingGoal)
+    });
+
     if (!hasENS) {
       setError('You need an ENS name to create a raise.');
       return false;
@@ -125,8 +136,8 @@ export default function CreateRaiseBasic() {
         description,
         fundingGoal,
         projectDuration: durationUnit === 'seconds' 
-          ? Number(durationDays) // Already in seconds
-          : Number(durationDays) * 24 * 60 * 60, // Convert days to seconds
+          ? Number(durationDays) 
+          : Number(durationDays) * 24 * 60, // Remove the extra * 60Already in seconds
         acceptsEth: selectedToken === 'eth'
       });
 
