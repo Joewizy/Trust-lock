@@ -107,6 +107,9 @@ export default function Home() {
       </section>
 
       <section className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="col-span-full text-center text-sm text-muted-foreground mb-4">
+          Example campaigns - Visit <Link href="/raises" className="underline">raises</Link> to see live campaigns on the blockchain
+        </div>
         {raises.map((raise) => (
           <Card key={raise.id} className="flex h-full flex-col">
             <CardHeader>
@@ -134,7 +137,7 @@ export default function Home() {
                 href="/raises"
                 className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
               >
-                View raise
+                View all raises
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
               <Badge variant="secondary">Milestone live</Badge>

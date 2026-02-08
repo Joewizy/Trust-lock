@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ImagePlus, ExternalLink } from 'lucide-react';
+import { ExternalLink, Shield, AlertCircle, Sparkles } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { toast } from 'react-hot-toast';
 import { sepolia } from 'wagmi/chains';
@@ -12,14 +12,16 @@ import { PageShell } from '@/components/shared/page-shell';
 import { RaiseStepper } from '@/components/shared/raise-stepper';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { loadDraft, saveDraft, clearDraft } from '@/lib/raise-storage';
 import { useTrustLock } from '@/lib/hooks/useTrustLock';
 import { AcknowledgementModal } from '@/components/raise/acknowledgement-modal';
+import { useENS } from '@/lib/hooks/useEns';
 
 // Contract constants for validation
 const TITLE_MIN_LENGTH = 3;
@@ -36,6 +38,7 @@ export default function CreateRaiseBasic() {
   const { address } = useAccount();
   const router = useRouter();
   const { createCampaign, isLoading, status } = useTrustLock();
+  const { ensName, ensAvatar, hasENS, isLoading: isEnsLoading } = useENS();
   
   const [title, setTitle] = React.useState('');
   const [description, setDescription] = React.useState('');
@@ -68,6 +71,11 @@ export default function CreateRaiseBasic() {
   }, [title, description, fundingGoal, durationDays, selectedToken, address]);
 
   const validateForm = () => {
+    if (!hasENS) {
+      setError('You need an ENS name to create a raise.');
+      return false;
+    }
+
     if (!title || !description || !fundingGoal || !durationDays) {
       setError('Please fill in all required fields.');
       return false;
@@ -115,7 +123,7 @@ export default function CreateRaiseBasic() {
         title,
         description,
         fundingGoal,
-        projectDuration: Math.ceil(Number(durationDays) / 7), // Convert days to weeks
+        projectDuration: Math.ceil(Number(durationDays) / 7),
         acceptsEth: selectedToken === 'eth'
       });
 
@@ -145,7 +153,6 @@ export default function CreateRaiseBasic() {
         );
         clearDraft();
         setShowModal(false);
-        // Delay redirect so user can see the toast and tx link
         setTimeout(() => router.push('/raises'), 4500);
       }
     } catch (err) {
@@ -156,7 +163,7 @@ export default function CreateRaiseBasic() {
 
   React.useEffect(() => {
     if (status && status.includes('✅')) {
-      // Success will be handled in handleConfirmCreate
+      // Success handled in handleConfirmCreate
     } else if (status && status.includes('❌')) {
       setError(status);
     }
@@ -168,16 +175,76 @@ export default function CreateRaiseBasic() {
         <Badge variant='secondary' className='w-fit'>
           Create a Raise
         </Badge>
-        <h1 className='text-3xl font-semibold sm:text-4xl font-[var(--font-display)]'>
-          Start with the basics.
-        </h1>
+        
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className='text-3xl font-semibold sm:text-4xl font-[var(--font-display)]'>
+              Start with the basics.
+            </h1>
+            
+            {/* Verified Creator Badge - For ENS holders */}
+            {!isEnsLoading && hasENS && ensName && (
+              <div className="flex items-center gap-2 mt-3">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
+                  <Shield className="h-3.5 w-3.5 text-emerald-600" />
+                  <span className="text-sm font-medium text-emerald-700">
+                    Verified Creator
+                  </span>
+                  {ensAvatar && (
+                    <img 
+                      src={ensAvatar} 
+                      alt={ensName}
+                      className="h-4 w-4 rounded-full ml-1"
+                    />
+                  )}
+                  <span className="text-sm font-mono text-emerald-600">
+                    {ensName}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         <RaiseStepper currentStep={1} />
       </section>
 
+      {/* Compact ENS Status - Only show if no ENS */}
+      {!isEnsLoading && !hasENS && (
+        <Alert className="border-amber-300 bg-amber-50/50 mt-6">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <span className="text-sm font-medium text-amber-900">ENS name required to create raises</span>
+              <p className="text-xs text-amber-700 mt-0.5">
+                Builds trust and makes your raise discoverable
+              </p>
+            </div>
+            <a
+              href='https://app.ens.domains/'
+              target='_blank'
+              rel='noopener noreferrer'
+              className={cn(buttonVariants({ size: 'sm', variant: 'default' }), 'ml-4 shrink-0')}
+            >
+              Get ENS
+              <ExternalLink className="ml-1.5 h-3 w-3" />
+            </a>
+          </div>
+        </Alert>
+      )}
+
       <section className='mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]'>
-        <Card className='bg-white/80'>
+        <Card className={cn(
+          'bg-white/80 transition-all',
+          !hasENS && 'opacity-60'
+        )}>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
+            {!hasENS && (
+              <CardDescription className="text-amber-600">
+                Complete ENS verification above to unlock this form
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent className='space-y-5'>
             <div className='space-y-2'>
@@ -188,12 +255,14 @@ export default function CreateRaiseBasic() {
                 </span>
               </div>
               <Input
-                placeholder='OpenVote Registry'
+                placeholder='Campaign title'
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 maxLength={TITLE_MAX_LENGTH}
+                disabled={!hasENS}
               />
             </div>
+            
             <div className='space-y-2'>
               <div className='flex items-center justify-between'>
                 <Label>Description</Label>
@@ -206,17 +275,22 @@ export default function CreateRaiseBasic() {
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 maxLength={DESCRIPTION_MAX_LENGTH}
+                rows={4}
+                disabled={!hasENS}
               />
             </div>
+            
             <div className='grid gap-4 sm:grid-cols-2'>
               <div className='space-y-2'>
-                <Label>Total funding target (USD)</Label>
+                <Label>Total funding target (ETH)</Label>
                 <Input
                   type='number'
                   min={0}
-                  placeholder='8500'
+                  step="0.01"
+                  placeholder='10'
                   value={fundingGoal}
                   onChange={(event) => setFundingGoal(event.target.value)}
+                  disabled={!hasENS}
                 />
               </div>
               <div className='space-y-2'>
@@ -224,12 +298,14 @@ export default function CreateRaiseBasic() {
                 <Input
                   type='number'
                   min={1}
-                  placeholder='45'
+                  placeholder='30'
                   value={durationDays}
                   onChange={(event) => setDurationDays(event.target.value)}
+                  disabled={!hasENS}
                 />
               </div>
             </div>
+            
             <div className='space-y-2'>
               <Label>Accept funding in</Label>
               <div className='flex flex-wrap gap-2'>
@@ -238,50 +314,112 @@ export default function CreateRaiseBasic() {
                     key={token.id}
                     type='button'
                     variant={selectedToken === token.id ? 'default' : 'outline'}
-                    onClick={() => setSelectedToken(token.id)}>
+                    onClick={() => setSelectedToken(token.id)}
+                    disabled={!hasENS}
+                  >
                     {token.label}
                   </Button>
                 ))}
               </div>
               <p className='text-xs text-muted-foreground'>
-                Toggle between ETH or faucet tokens. You can only choose between faucet or ether once.
+                Choose your preferred token for contributions
               </p>
             </div>
-            <div className='flex items-center justify-end gap-3'>
+            
+            <div className='flex items-center justify-end gap-3 pt-4 border-t'>
               <Link href='/' className={cn(buttonVariants({ variant: 'ghost' }))}>
                 Cancel
               </Link>
               <Button
                 onClick={handleCreateRaise}
-                disabled={!address || isLoading}
+                disabled={!address || isLoading || !hasENS}
                 className={cn(buttonVariants({ variant: 'default' }))}>
                 {isLoading ? 'Creating...' : 'Create Raise'}
               </Button>
             </div>
+            
             {error && (
-              <div className='text-sm text-red-600 mt-2'>
-                {error}
-              </div>
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
           </CardContent>
         </Card>
-        <Card className='bg-white/70'>
-          <CardHeader>
-            <CardTitle>What happens next</CardTitle>
-          </CardHeader>
-          <CardContent className='space-y-3 text-sm text-muted-foreground'>
-            <p>
-              Add milestones with clear outcomes. Each milestone defines the amount
-              that can be unlocked after contributor approval.
-            </p>
-            <p>
-              Once published, the milestone structure and funding rules are locked in.
-            </p>
-            <Button variant='outline' className='w-full'>
-              Preview raise details
-            </Button>
-          </CardContent>
-        </Card>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* ENS Benefits Card - Only show if no ENS */}
+          {!hasENS && (
+            <Card className='border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10'>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  Why ENS?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className='space-y-3 text-sm'>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <Shield className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Build Trust</p>
+                      <p className="text-xs text-muted-foreground">
+                        Verified identity reduces scams and builds credibility
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Stand Out</p>
+                      <p className="text-xs text-muted-foreground">
+                        Memorable name.eth instead of 0x123...
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <ExternalLink className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Get Discovered</p>
+                      <p className="text-xs text-muted-foreground">
+                        Your raises linked to your permanent web3 identity
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+            <a
+                  href='https://sepolia.app.ens.domains/'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className={cn(buttonVariants({ variant: 'default' }), 'w-full mt-4')}
+                >
+                  Register ENS Name
+                  <ExternalLink className="ml-2 h-4 w-4" />
+                </a>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* What Happens Next */}
+          <Card className='bg-white/70'>
+            <CardHeader>
+              <CardTitle>What happens next</CardTitle>
+            </CardHeader>
+            <CardContent className='space-y-3 text-sm text-muted-foreground'>
+              <p>
+                Once your raise reaches its funding goal, you can create milestones with clear outcomes.
+              </p>
+              <p>
+                Each milestone requires contributor approval before funds are released.
+              </p>
+              <p className="text-xs pt-2 border-t">
+                All raise details are immutably stored on-chain
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       {/* Acknowledgement Modal */}

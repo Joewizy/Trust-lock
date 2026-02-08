@@ -103,7 +103,7 @@ export default function ContributePage({ params }: { params: { id: string } }) {
         {/* ================= LEFT ================= */}
         <div className='space-y-5'>
           <Badge variant='secondary' className='w-fit'>
-            Contribute to {localRaise?.title ?? 'OpenVote Registry'}
+            Contribute to {localRaise?.title ?? 'Campaign'}
           </Badge>
 
           <h1 className='text-3xl font-semibold sm:text-4xl font-[var(--font-display)]'>

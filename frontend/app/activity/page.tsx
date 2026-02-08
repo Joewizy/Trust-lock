@@ -99,6 +99,9 @@ export default function Activity() {
         </TabsList>
 
         <TabsContent value='raises'>
+          <div className='text-center text-sm text-muted-foreground mb-4'>
+            Example raises - Visit <Link href="/raises" className="underline">raises</Link> to see live campaigns
+          </div>
           <section className='grid gap-6 md:grid-cols-2'>
             {myRaises.map((raise) => (
               <Card key={raise.id} className='flex h-full flex-col'>
@@ -124,9 +127,9 @@ export default function Activity() {
                 </CardContent>
                 <CardFooter>
                   <Link
-                    href={`/raise/${raise.id}`}
+                    href={`/raises`}
                     className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
-                    Manage raise
+                    View raises
                   </Link>
                   <Badge variant='secondary'>Owner</Badge>
                 </CardFooter>
@@ -136,6 +139,9 @@ export default function Activity() {
         </TabsContent>
 
         <TabsContent value='contributions'>
+          <div className='text-center text-sm text-muted-foreground mb-4'>
+            Example contributions - Visit <Link href="/raises" className="underline">raises</Link> to see live campaigns
+          </div>
           <section className='grid gap-6 md:grid-cols-2'>
             {contributions.map((raise) => (
               <Card key={raise.id} className='flex h-full flex-col'>
@@ -161,9 +167,9 @@ export default function Activity() {
                 </CardContent>
                 <CardFooter>
                   <Link
-                    href={`/raise/${raise.id}`}
+                    href={`/raises`}
                     className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
-                    View raise
+                    View raises
                   </Link>
                   <Badge variant='secondary'>Contributor</Badge>
                 </CardFooter>
