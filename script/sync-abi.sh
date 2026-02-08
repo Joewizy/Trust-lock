@@ -15,6 +15,7 @@ cp "$OUT_DIR/TrustLockConfig.sol/TrustLockConfig.json" "$DEST_DIR/"
 cp "$OUT_DIR/TrustLockCampaignManager.sol/TrustLockCampaignManager.json" "$DEST_DIR/"
 cp "$OUT_DIR/TrustLockTreasury.sol/TrustLockTreasury.json" "$DEST_DIR/"
 cp "$OUT_DIR/TrustLockVoting.sol/TrustLockVoting.json" "$DEST_DIR/"
+cp "$OUT_DIR/Faucet.sol/TrustLockFaucetToken.json" "$DEST_DIR/"
 
 echo "✅ ABIs synced successfully!"
 echo "📁 Generated files in: $DEST_DIR"

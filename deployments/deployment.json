@@ -6,7 +6,12 @@
     "voting": "0xf1013F2aCd7CEDB3fa0E5175e807C34A6981A5C0",
     "treasury": "0x586a61210a9a89C1B148C235Af3Ad94e671D8Ec5",
     "protocolFeeRecipient": "0xa2791e44234Dc9C96F260aD15fdD09Fe9B597FE1",
-    "blockNumber": 10211703,
-    "timestamp": 1770482412,
-    "deployedAt": "1770482412"
+    "faucetToken": "0x4DA2aabeD46a70e266b1231fa12bAb2719158652",
+    "faucetAmount": "100000000000000000000",
+    "faucetCooldown": "86400",
+    "faucetTokenName": "TrustLock Faucet",
+    "faucetTokenSymbol": "TLT",
+    "blockNumber": 10215605,
+    "timestamp": 1770530844,
+    "deployedAt": "1770530844"
 }
