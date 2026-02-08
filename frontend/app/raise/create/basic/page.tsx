@@ -37,8 +37,8 @@ const tokenOptions = [
 export default function CreateRaiseBasic() {
   const { address } = useAccount();
   const router = useRouter();
-  const { createCampaign, isLoading, status } = useTrustLock();
-  const { ensName, ensAvatar, hasENS, isLoading: isEnsLoading } = useENS();
+  const { createCampaign, loading, status } = useTrustLock();
+  const { ensName, ensAvatar, hasENS, isLoading } = useENS();
   
   const [title, setTitle] = React.useState('');
   const [description, setDescription] = React.useState('');
@@ -186,7 +186,7 @@ export default function CreateRaiseBasic() {
             </h1>
             
             {/* Verified Creator Badge - For ENS holders */}
-            {!isEnsLoading && hasENS && ensName && (
+            {!isLoading && hasENS && ensName && (
               <div className="flex items-center gap-2 mt-3">
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
                   <Shield className="h-3.5 w-3.5 text-emerald-600" />
@@ -213,7 +213,7 @@ export default function CreateRaiseBasic() {
       </section>
 
       {/* Compact ENS Status - Only show if no ENS */}
-      {!isEnsLoading && !hasENS && (
+      {!isLoading && !hasENS && (
         <Alert className="border-amber-300 bg-amber-50/50 mt-6">
           <AlertCircle className="h-4 w-4 text-amber-600" />
           <div className="flex items-center justify-between">
@@ -371,9 +371,9 @@ export default function CreateRaiseBasic() {
               </Link>
               <Button
                 onClick={handleCreateRaise}
-                disabled={!address || isLoading || !hasENS}
+                disabled={!address || loading || !hasENS}
                 className={cn(buttonVariants({ variant: 'default' }))}>
-                {isLoading ? 'Creating...' : 'Create Raise'}
+                {loading ? 'Creating...' : 'Create Raise'}
               </Button>
             </div>
             
@@ -466,7 +466,7 @@ export default function CreateRaiseBasic() {
         open={showModal}
         onOpenChange={setShowModal}
         onCreateRaise={handleConfirmCreate}
-        isLoading={isLoading}
+        isLoading={loading}
         status={status}
         error={error}
       />

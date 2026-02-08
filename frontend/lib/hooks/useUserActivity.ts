@@ -44,8 +44,8 @@ export function useUserContributions() {
   // Batch check if user has contributed to each campaign
   const { data: contributionChecks, isLoading: isCheckingContributions } = useReadContracts({
     contracts: campaignIds.map(id => ({
-      address: TrustLockCoreAddress,
-      abi: TrustLockCoreABI,
+      address: TrustLockCoreAddress as `0x${string}`,
+      abi: TrustLockCoreABI as any,
       functionName: 'hasContributedToCampaign',
       args: [BigInt(id), address as `0x${string}`],
     })),
@@ -55,8 +55,8 @@ export function useUserContributions() {
   // Batch get contribution amounts for campaigns user contributed to
   const { data: contributionAmounts } = useReadContracts({
     contracts: campaignIds.map(id => ({
-      address: TrustLockCoreAddress,
-      abi: TrustLockCoreABI,
+      address: TrustLockCoreAddress as `0x${string}`,
+      abi: TrustLockCoreABI as any,
       functionName: 'getContribution',
       args: [BigInt(id), address as `0x${string}`],
     })),

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "NODE_OPTIONS='--max-old-space-size=4096' next dev",
     "build": "next build",
+    "build:deploy": "TSC_IGNORE_DEPS=true next build",
     "start": "next start",
     "lint": "eslint",
     "sync-abi": "cd .. && ./script/sync-abi.sh"

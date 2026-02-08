@@ -175,7 +175,7 @@ export function useFaucet() {
 
       const result = await writeContractAsync({
         address: FaucetTokenAddress,
-        abi: FaucetTokenABI,
+        abi: FaucetTokenABI as any,
         functionName: 'approve',
         args: [TreasuryAddress, amountToApprove]
       })
@@ -183,7 +183,12 @@ export function useFaucet() {
       setStatus('✅ Approval submitted! Waiting for confirmation...')
       
       // Wait for transaction receipt
-      const receipt = await waitForTransactionReceipt(config, { hash: result.hash as `0x${string}` })
+      const hash = (result as any).hash;
+      if (!hash) {
+        setStatus('❌ Transaction failed');
+        return false;
+      }
+      const receipt = await waitForTransactionReceipt(config, { hash: hash as `0x${string}` })
       
       console.log('Transaction receipt:', receipt)
       

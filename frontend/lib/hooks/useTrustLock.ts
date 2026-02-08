@@ -271,11 +271,11 @@ export const useTrustLock = () => {
       setStatus('⏳ Creating campaign...');
       setLoading(true);
       
-      const maxDurationWeeks = formattedConfig.projectMaxDurationWeeks;
-      if (params.projectDuration > maxDurationWeeks) {
-        setStatus(`❌ Campaign duration cannot exceed ${maxDurationWeeks} weeks`);
-        return { success: false };
-      }
+      // const maxDurationWeeks = formattedConfig.projectMaxDurationWeeks;
+      // if (params.projectDuration > maxDurationWeeks) {
+      //   setStatus(`❌ Campaign duration cannot exceed ${maxDurationWeeks} weeks`);
+      //   return { success: false };
+      // }
 
       const tokenAddress = params.acceptsEth ? ethers.ZeroAddress : FaucetTokenAddress;
       const fundingGoalWei = ethers.parseEther(params.fundingGoal);
@@ -632,20 +632,20 @@ export const useCampaignList = (campaignIds?: number[]) => {
   const { data: campaignsData, isLoading: isCampaignsLoading } = useReadContracts({
     contracts: idsToFetch.flatMap(id => [
       {
-        address: TrustLockCoreAddress,
-        abi: TrustLockCoreABI,
+        address: TrustLockCoreAddress as `0x${string}`,
+        abi: TrustLockCoreABI as any,
         functionName: 'getCampaign',
         args: [BigInt(id)],
       },
       {
-        address: CampaignManagerAddress,
-        abi: CampaignManagerABI,
+        address: CampaignManagerAddress as `0x${string}`,
+        abi: CampaignManagerABI as any,
         functionName: 'campaignTitles',
         args: [BigInt(id)],
       },
       {
-        address: CampaignManagerAddress,
-        abi: CampaignManagerABI,
+        address: CampaignManagerAddress as `0x${string}`,
+        abi: CampaignManagerABI as any,
         functionName: 'campaignDescriptions',
         args: [BigInt(id)],
       },

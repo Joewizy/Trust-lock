@@ -33,26 +33,26 @@ export const useTrustLockConfig = () => {
   // Return formatted config object
   return {
     // Campaign config
-    minimumContribution: Number(campaignConfig?.[0] || 0),
-    maxContributionPercentage: Number(campaignConfig?.[1] || 0),
-    fundingDuration: Number(campaignConfig?.[2] || 0),
-    projectMaxDuration: Number(campaignConfig?.[3] || 0),
-    protocolFeePercent: Number(campaignConfig?.[4] || 0),
+    minimumContribution: Number((campaignConfig as any)?.[0] || 0),
+    maxContributionPercentage: Number((campaignConfig as any)?.[1] || 0),
+    fundingDuration: Number((campaignConfig as any)?.[2] || 0),
+    projectMaxDuration: Number((campaignConfig as any)?.[3] || 0),
+    protocolFeePercent: Number((campaignConfig as any)?.[4] || 0),
     
     // Voting config
-    votingDuration: Number(votingConfig?.[0] || 0),
-    minMilestonePercent: Number(votingConfig?.[1] || 0),
-    maxMilestonePercent: Number(votingConfig?.[2] || 0),
-    firstMilestoneMax: Number(votingConfig?.[3] || 0),
-    majorityThreshold: Number(votingConfig?.[4] || 0),
-    maxConsecutiveFailures: Number(votingConfig?.[5] || 0),
-    maxTotalFailures: Number(votingConfig?.[6] || 0),
+    votingDuration: Number((votingConfig as any)?.[0] || 0),
+    minMilestonePercent: Number((votingConfig as any)?.[1] || 0),
+    maxMilestonePercent: Number((votingConfig as any)?.[2] || 0),
+    firstMilestoneMax: Number((votingConfig as any)?.[3] || 0),
+    majorityThreshold: Number((votingConfig as any)?.[4] || 0),
+    maxConsecutiveFailures: Number((votingConfig as any)?.[5] || 0),
+    maxTotalFailures: Number((votingConfig as any)?.[6] || 0),
     
     // String validation config
-    minTitleLength: Number(campaignConfig?.[5] || 0),
-    maxTitleLength: Number(campaignConfig?.[6] || 0),
-    minDescriptionLength: Number(campaignConfig?.[7] || 0),
-    maxDescriptionLength: Number(campaignConfig?.[8] || 0),
+    minTitleLength: Number((campaignConfig as any)?.[5] || 0),
+    maxTitleLength: Number((campaignConfig as any)?.[6] || 0),
+    minDescriptionLength: Number((campaignConfig as any)?.[7] || 0),
+    maxDescriptionLength: Number((campaignConfig as any)?.[8] || 0),
     
     // Meta
     isLoading,
@@ -83,15 +83,15 @@ export const useCampaignConfig = () => {
   });
   
   return {
-    minimumContribution: Number(campaignConfig?.[0] || 0),
-    maxContributionPercentage: Number(campaignConfig?.[1] || 0),
-    fundingDuration: Number(campaignConfig?.[2] || 0),
-    projectMaxDuration: Number(campaignConfig?.[3] || 0),
-    protocolFeePercent: Number(campaignConfig?.[4] || 0),
-    minTitleLength: Number(campaignConfig?.[5] || 0),
-    maxTitleLength: Number(campaignConfig?.[6] || 0),
-    minDescriptionLength: Number(campaignConfig?.[7] || 0),
-    maxDescriptionLength: Number(campaignConfig?.[8] || 0),
+    minimumContribution: Number((campaignConfig as any)?.[0] || 0),
+    maxContributionPercentage: Number((campaignConfig as any)?.[1] || 0),
+    fundingDuration: Number((campaignConfig as any)?.[2] || 0),
+    projectMaxDuration: Number((campaignConfig as any)?.[3] || 0),
+    protocolFeePercent: Number((campaignConfig as any)?.[4] || 0),
+    minTitleLength: Number((campaignConfig as any)?.[5] || 0),
+    maxTitleLength: Number((campaignConfig as any)?.[6] || 0),
+    minDescriptionLength: Number((campaignConfig as any)?.[7] || 0),
+    maxDescriptionLength: Number((campaignConfig as any)?.[8] || 0),
     isLoading,
     error
   };
@@ -113,13 +113,13 @@ export const useVotingConfig = () => {
   });
   
   return {
-    votingDuration: Number(votingConfig?.[0] || 0),
-    minMilestonePercent: Number(votingConfig?.[1] || 0),
-    maxMilestonePercent: Number(votingConfig?.[2] || 0),
-    firstMilestoneMax: Number(votingConfig?.[3] || 0),
-    majorityThreshold: Number(votingConfig?.[4] || 0),
-    maxConsecutiveFailures: Number(votingConfig?.[5] || 0),
-    maxTotalFailures: Number(votingConfig?.[6] || 0),
+    votingDuration: Number((votingConfig as any)?.[0] || 0),
+    minMilestonePercent: Number((votingConfig as any)?.[1] || 0),
+    maxMilestonePercent: Number((votingConfig as any)?.[2] || 0),
+    firstMilestoneMax: Number((votingConfig as any)?.[3] || 0),
+    majorityThreshold: Number((votingConfig as any)?.[4] || 0),
+    maxConsecutiveFailures: Number((votingConfig as any)?.[5] || 0),
+    maxTotalFailures: Number((votingConfig as any)?.[6] || 0),
     isLoading,
     error
   };

@@ -133,7 +133,10 @@ export default function Activity() {
               {created.campaigns.map(({ id, data }) => {
                 const isFaucetToken = !data.acceptsEth && 
                   data.acceptedToken.toLowerCase() === FaucetTokenAddress.toLowerCase();
-                const progress = calculateProgress(data.totalRaised, data.fundingGoal);
+                const progress = calculateProgress(
+                  BigInt(String(data.totalRaised || '0')), 
+                  BigInt(String(data.fundingGoal || '1'))
+                );
                 const status = getCampaignStatus(data.state);
                 
                 return (
@@ -151,12 +154,12 @@ export default function Activity() {
                       <div className='space-y-2'>
                         <Progress value={progress} />
                         <div className='flex items-center justify-between text-xs text-muted-foreground'>
-                          <span>Raised: {formatCurrency(data.totalRaised, isFaucetToken)}</span>
-                          <span>Target: {formatCurrency(data.fundingGoal, isFaucetToken)}</span>
+                          <span>Raised: {formatCurrency(BigInt(String(data.totalRaised || '0')), isFaucetToken)}</span>
+                          <span>Target: {formatCurrency(BigInt(String(data.fundingGoal || '1')), isFaucetToken)}</span>
                         </div>
                       </div>
                       <div className='flex items-center justify-between text-xs text-muted-foreground'>
-                        <span>Released: {formatCurrency(data.releasedFunds, isFaucetToken)}</span>
+                        <span>Released: {formatCurrency(BigInt(String(data.releasedFunds || '0')), isFaucetToken)}</span>
                         <span>{progress.toFixed(1)}% funded</span>
                       </div>
                       <div className='flex items-center justify-between text-xs text-muted-foreground'>
@@ -207,7 +210,10 @@ export default function Activity() {
               {contributed.campaigns.map(({ id, data, contributionAmount }) => {
                 const isFaucetToken = !data.acceptsEth && 
                   data.acceptedToken.toLowerCase() === FaucetTokenAddress.toLowerCase();
-                const progress = calculateProgress(data.totalRaised, data.fundingGoal);
+                const progress = calculateProgress(
+                  BigInt(String(data.totalRaised || '0')), 
+                  BigInt(String(data.fundingGoal || '1'))
+                );
                 const status = getCampaignStatus(data.state);
                 
                 // Calculate remaining contribution amount
@@ -231,8 +237,8 @@ export default function Activity() {
                       <div className='space-y-2'>
                         <Progress value={progress} />
                         <div className='flex items-center justify-between text-xs text-muted-foreground'>
-                          <span>Raised: {formatCurrency(data.totalRaised, isFaucetToken)}</span>
-                          <span>Target: {formatCurrency(data.fundingGoal, isFaucetToken)}</span>
+                          <span>Raised: {formatCurrency(BigInt(String(data.totalRaised || '0')), isFaucetToken)}</span>
+                          <span>Target: {formatCurrency(BigInt(String(data.fundingGoal || '1')), isFaucetToken)}</span>
                         </div>
                       </div>
                       <div className='flex items-center justify-between text-xs text-muted-foreground'>

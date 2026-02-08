@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Clock, TrendingUp, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowUpRight, Clock, TrendingUp, CheckCircle, XCircle, Vote } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { formatEther } from 'viem';
 import { buttonVariants } from '@/components/ui/button';
@@ -21,6 +21,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useCampaignList } from '@/lib/hooks/useTrustLock';
+import { useVotingEligibility } from '@/lib/hooks/useVoting';
 import { CampaignState } from '@/lib/contracts/types';
 import type { Campaign } from '@/lib/contracts/types';
 
@@ -65,16 +66,28 @@ function CampaignCard({ campaign, campaignId }: { campaign: CampaignWithMeta; ca
   const raisedStr = formatEtherAmount(campaign.totalRaised ?? '0');
   const targetStr = formatEtherAmount(campaign.fundingGoal ?? '0');
   const StateIcon = getStateIcon(campaign.state ?? CampaignState.FUNDING);
+  const { isEligibleToVote } = useVotingEligibility();
+
+  const canVote = isEligibleToVote(campaignId);
+  const showVotingBadge = campaign.state === CampaignState.VOTING || campaign.state === CampaignState.ACTIVE;
 
   return (
     <Card className="flex h-full flex-col">
       <CardHeader>
         <div className="flex items-start justify-between">
           <CardTitle>{campaign.title ?? 'Campaign'}</CardTitle>
-          <Badge variant="success" className="flex items-center gap-1">
-            <StateIcon className="h-3 w-3" />
-            {getStateText(campaign.state ?? CampaignState.FUNDING)}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {showVotingBadge && canVote && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Vote className="h-3 w-3" />
+                Can Vote
+              </Badge>
+            )}
+            <Badge variant="success" className="flex items-center gap-1">
+              <StateIcon className="h-3 w-3" />
+              {getStateText(campaign.state ?? CampaignState.FUNDING)}
+            </Badge>
+          </div>
         </div>
         <CardDescription>{campaign.description ?? ''}</CardDescription>
       </CardHeader>
@@ -88,6 +101,9 @@ function CampaignCard({ campaign, campaignId }: { campaign: CampaignWithMeta; ca
         </div>
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>{progressPercentage.toFixed(0)}% funded</span>
+          {showVotingBadge && canVote && (
+            <span className="text-amber-600">Voting active</span>
+          )}
         </div>
       </CardContent>
       <CardFooter>

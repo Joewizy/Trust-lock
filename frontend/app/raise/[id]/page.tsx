@@ -18,9 +18,11 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useCampaign, useTrustLockRaiseActions } from '@/lib/hooks/useTrustLock';
+import { useVoting, type Milestone } from '@/lib/hooks/useVoting';
 import { CampaignState } from '@/lib/contracts/types';
 import { sepolia } from 'wagmi/chains';
 import { useEnsName } from 'wagmi';
+import { CheckCircle, XCircle, Clock, Vote } from 'lucide-react';
 
 const formatAddress = (address: string) => 
   `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -115,6 +117,13 @@ export default function RaisePage() {
   
   const { campaign: campaignData, refetchCampaign, isLoading: isCampaignLoading } = useCampaign(campaignId);
   const { createMilestone, status, loading } = useTrustLockRaiseActions();
+  const { 
+    milestones, 
+    hasContributed, 
+    canVote, 
+    isVoting, 
+    voteOnMilestone 
+  } = useVoting(campaignId);
   const { data: creatorEnsName } = useEnsName({
     address: campaignData?.creator as `0x${string}`,
     chainId: sepolia.id,
@@ -299,6 +308,113 @@ export default function RaisePage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Milestones Section */}
+            {milestones.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Vote className="h-5 w-5" />
+                      Milestones
+                    </CardTitle>
+                    {hasContributed && (
+                      <Badge variant="secondary">You can vote</Badge>
+                    )}
+                  </div>
+                  <CardDescription>
+                    Track progress and vote on milestone completions
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {milestones.map((milestone) => (
+                    <div key={milestone.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium">Milestone {milestone.id + 1}</h4>
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                milestone.status === 'approved' && "border-green-200 text-green-700",
+                                milestone.status === 'rejected' && "border-red-200 text-red-700", 
+                                milestone.status === 'voting' && "border-yellow-200 text-yellow-700",
+                                milestone.status === 'pending' && "border-gray-200 text-gray-700"
+                              )}
+                            >
+                              <div className="flex items-center gap-1">
+                                {milestone.status === 'approved' && <CheckCircle className="h-3 w-3" />}
+                                {milestone.status === 'rejected' && <XCircle className="h-3 w-3" />}
+                                {milestone.status === 'voting' && <Clock className="h-3 w-3" />}
+                                {milestone.status}
+                              </div>
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {milestone.description}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>Funds: {milestone.percentage}%</span>
+                            <span>•</span>
+                            <span>For: {milestone.votesFor}</span>
+                            <span>•</span>
+                            <span>Against: {milestone.votesAgainst}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {milestone.status === 'voting' && (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <div className="text-xs text-green-600">For ({milestone.votesFor})</div>
+                              <Progress 
+                                value={milestone.votesFor + milestone.votesAgainst > 0 
+                                  ? (milestone.votesFor / (milestone.votesFor + milestone.votesAgainst)) * 100 
+                                  : 0} 
+                                className="h-2 bg-green-100"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="text-xs text-red-600">Against ({milestone.votesAgainst})</div>
+                              <Progress 
+                                value={milestone.votesFor + milestone.votesAgainst > 0 
+                                  ? (milestone.votesAgainst / (milestone.votesFor + milestone.votesAgainst)) * 100 
+                                  : 0} 
+                                className="h-2 bg-red-100"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">
+                              {milestone.hasVoted ? (
+                                <span className="text-amber-600">You have voted</span>
+                              ) : hasContributed ? (
+                                <span>Vote on this milestone</span>
+                              ) : (
+                                <span>Contribute to vote</span>
+                              )}
+                            </span>
+                            
+                            {milestone.status === 'voting' && !milestone.hasVoted && hasContributed && (
+                              <div className="flex gap-2">
+                                <Link href={`/raise/${campaignId}/vote`}>
+                                  <Button size="sm" variant="outline">
+                                    <Vote className="mr-2 h-3 w-3" />
+                                    Vote Now
+                                  </Button>
+                                </Link>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Campaign Details */}
             <div className="grid gap-4 md:grid-cols-2">
