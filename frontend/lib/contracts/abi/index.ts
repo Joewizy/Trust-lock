@@ -17,8 +17,8 @@ export const FaucetTokenABI = FaucetTokenJson.abi
 
 // ============ CONTRACT ADDRESSES ============
 export const FaucetTokenAddress = "0x4DA2aabeD46a70e266b1231fa12bAb2719158652"
-export const TrustLockCoreAddress = "0x94be75b500F882Ed1D1EE79ace2e9c68025656FE"
-export const CampaignManagerAddress = "0xf9c4c8B278904528acc86dCFCdC8a7A07095D4c0"
-export const VotingAddress = "0x1cfbac739e53FA649AF38D797668270A88DfF08B"
-export const TreasuryAddress = "0xFA6E8A06DCb2347FeB46880eD5307c8c18CA92cc"
+export const TrustLockCoreAddress = "0xfA72e7FbD07ab4D3Ec1D15320fBb4b51606c1Ac0"
+export const CampaignManagerAddress = "0xBD39A53be24457FE50f6D4F7a889f0E4f9Bb1Dcd"
+export const VotingAddress = "0xf1013F2aCd7CEDB3fa0E5175e807C34A6981A5C0"
+export const TreasuryAddress = "0x586a61210a9a89C1B148C235Af3Ad94e671D8Ec5"
 export const TrustLockConfigAddress = "0xd9d8950cD0804A06886350A16393D90f113d00b6"

@@ -4,8 +4,6 @@ import { cn } from "@/lib/utils"
 
 const steps = [
   { label: "Basic Info", href: "/raise/create/basic" },
-  { label: "Define Milestones", href: "/raise/create/milestones" },
-  { label: "Acknowledgement", href: "/raise/create/acknowledgement" },
 ]
 
 export function RaiseStepper({ currentStep }: { currentStep: number }) {

@@ -1,8 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig, useReadContracts } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useConfig, useReadContracts } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
-import { TrustLockCoreAddress, TrustLockCoreABI, FaucetTokenAddress } from '../contracts/abi';
+import { TrustLockCoreAddress, TrustLockCoreABI } from '../contracts/abi/core';
+import { CampaignManagerAddress, CampaignManagerABI } from '../contracts/abi/campaign-manager';
+import { FaucetTokenAddress } from '../contracts/abi/faucet';
 import { Milestone, Campaign } from '../contracts/types';
 import { useFaucet } from './useFaucet';
 import { useFormattedConfig } from './useTrustLockConfig';
@@ -40,12 +42,33 @@ export const useTrustLock = () => {
   // ========================================
 
   const useCampaign = (campaignId?: number) => {
-    const { data: campaignData, refetch: refetchCampaign } = useReadContract({
+    const { isConnected } = useAccount();
+    const enabled = isConnected && !!campaignId;
+
+    // Must always call hooks - use enabled to skip when no campaignId
+    const { data: campaignData, refetch: refetchCampaign, isLoading: isCampaignLoading } = useReadContract({
       address: TrustLockCoreAddress,
       abi: TrustLockCoreABI,
       functionName: 'getCampaign',
       args: campaignId !== undefined ? [BigInt(campaignId)] : undefined,
-      query: { enabled: isConnected && campaignId !== undefined }
+      query: { enabled }
+    });
+
+    // Title and description are in CampaignManager (not in Campaign struct)
+    const { data: title } = useReadContract({
+      address: CampaignManagerAddress,
+      abi: CampaignManagerABI,
+      functionName: 'campaignTitles',
+      args: campaignId !== undefined ? [BigInt(campaignId)] : undefined,
+      query: { enabled }
+    });
+
+    const { data: description } = useReadContract({
+      address: CampaignManagerAddress,
+      abi: CampaignManagerABI,
+      functionName: 'campaignDescriptions',
+      args: campaignId !== undefined ? [BigInt(campaignId)] : undefined,
+      query: { enabled }
     });
 
     const { data: contributors, refetch: refetchContributors } = useReadContract({
@@ -53,13 +76,18 @@ export const useTrustLock = () => {
       abi: TrustLockCoreABI,
       functionName: 'getContributors',
       args: campaignId !== undefined ? [BigInt(campaignId)] : undefined,
-      query: { enabled: isConnected && campaignId !== undefined }
+      query: { enabled }
     });
 
     const campaign = useMemo(() => {
-      if (!campaignData) return null;
-      return campaignData as Campaign;
-    }, [campaignData]);
+      if (!campaignData || !enabled) return null;
+      const c = campaignData as Campaign;
+      return {
+        ...c,
+        title: (title as string) ?? '',
+        description: (description as string) ?? ''
+      };
+    }, [campaignData, title, description, enabled]);
 
     const contributorsList = useMemo(() => {
       return (contributors as string[]) || [];
@@ -69,7 +97,8 @@ export const useTrustLock = () => {
       campaign,
       contributors: contributorsList,
       refetchCampaign,
-      refetchContributors
+      refetchContributors,
+      isLoading: isCampaignLoading
     };
   };
 
@@ -142,11 +171,12 @@ export const useTrustLock = () => {
 
     const results = useMemo(() => {
       if (!votingResults) return null;
+      const resultsArray = votingResults as [bigint, bigint, bigint, boolean];
       return {
-        votesFor: Number(votingResults[0]),
-        votesAgainst: Number(votingResults[1]),
-        totalVotes: Number(votingResults[2]),
-        approved: votingResults[3] as boolean
+        votesFor: Number(resultsArray[0]),
+        votesAgainst: Number(resultsArray[1]),
+        totalVotes: Number(resultsArray[2]),
+        approved: resultsArray[3] as boolean
       };
     }, [votingResults]);
 
@@ -194,7 +224,7 @@ export const useTrustLock = () => {
     title: string;
     description: string;
     fundingGoal: string;
-    projectDuration: number; // in weeks
+    projectDuration: number;
     acceptsEth: boolean;
   }): Promise<boolean> => {
     if (!address || !isConnected) {
@@ -206,17 +236,15 @@ export const useTrustLock = () => {
       setStatus('⏳ Creating campaign...');
       setLoading(true);
       
-      // Use config values for validation
       const maxDurationWeeks = formattedConfig.projectMaxDurationWeeks;
       if (params.projectDuration > maxDurationWeeks) {
         setStatus(`❌ Campaign duration cannot exceed ${maxDurationWeeks} weeks`);
         return false;
       }
 
-      // Use correct token address based on acceptsEth
       const tokenAddress = params.acceptsEth ? ethers.ZeroAddress : FaucetTokenAddress;
       const fundingGoalWei = ethers.parseEther(params.fundingGoal);
-      const durationSeconds = params.projectDuration * 7 * 24 * 60 * 60; // weeks to seconds
+      const durationSeconds = params.projectDuration * 7 * 24 * 60 * 60;
 
       const tx = await writeContractAsync({
         address: TrustLockCoreAddress,
@@ -245,7 +273,7 @@ export const useTrustLock = () => {
       } else if (error.message?.includes('User rejected') || error.message?.includes('User denied')) {
         setStatus(''); 
       } else {
-        setStatus(`Error message: ${error.message}`);
+        setStatus(`Error: ${error.message}`);
       }
       return false;
     } finally {
@@ -258,7 +286,6 @@ export const useTrustLock = () => {
   // ========================================
 
   const contribute = async (campaignId: number, amount: string, isEth: boolean = true): Promise<boolean> => {
-    const {approveTokens} = useFaucet();
     if (!address || !isConnected) {
       setStatus('❌ Connect wallet first');
       return false;
@@ -281,7 +308,8 @@ export const useTrustLock = () => {
 
         await waitForTransactionReceipt(config, { hash: tx });
       } else {
-        // For ERC20 tokens, user needs to approve first
+        await approveTokens(TrustLockCoreAddress, amount);
+        
         const amountWei = ethers.parseEther(amount);
         
         const tx = await writeContractAsync({
@@ -487,7 +515,7 @@ export const useTrustLock = () => {
     totalProtocolFees,
     refetchStats,
 
-    // Nested Hooks (use these for specific campaign/milestone data)
+    // Nested Hooks
     useCampaign,
     useUserContribution,
     useMilestone,
@@ -512,29 +540,81 @@ export const useTrustLock = () => {
 // HELPER HOOK FOR CAMPAIGN LIST
 // ========================================
 
-export const useCampaignList = (campaignIds: number[]) => {
+export const useCampaignList = (campaignIds?: number[]) => {
   const { isConnected } = useAccount();
 
-  const { data: campaignsData } = useReadContracts({
-    contracts: campaignIds.map(id => ({
-      address: TrustLockCoreAddress,
-      abi: TrustLockCoreABI,
-      functionName: 'getCampaign',
-      args: [BigInt(id)],
-    })),
-    query: { enabled: isConnected && campaignIds.length > 0 }
+  // Get total campaign count from protocol stats
+  const { data: protocolStats, isLoading: isStatsLoading } = useReadContract({
+    address: TrustLockCoreAddress,
+    abi: TrustLockCoreABI,
+    functionName: 'getProtocolStats',
+    query: { enabled: isConnected }
   });
 
+  const totalCount = protocolStats && Array.isArray(protocolStats) ? Number(protocolStats[0]) : 0;
+
+  const idsToFetch = useMemo(() => {
+    if (campaignIds && campaignIds.length > 0) return campaignIds;
+    if (totalCount === 0) return [];
+    return Array.from({ length: totalCount }, (_, i) => i + 1);
+  }, [campaignIds, totalCount]);
+
+  // Fetch getCampaign + campaignTitles + campaignDescriptions for each campaign (title/description in CampaignManager)
+  const { data: campaignsData, isLoading: isCampaignsLoading } = useReadContracts({
+    contracts: idsToFetch.flatMap(id => [
+      {
+        address: TrustLockCoreAddress,
+        abi: TrustLockCoreABI,
+        functionName: 'getCampaign',
+        args: [BigInt(id)],
+      },
+      {
+        address: CampaignManagerAddress,
+        abi: CampaignManagerABI,
+        functionName: 'campaignTitles',
+        args: [BigInt(id)],
+      },
+      {
+        address: CampaignManagerAddress,
+        abi: CampaignManagerABI,
+        functionName: 'campaignDescriptions',
+        args: [BigInt(id)],
+      },
+    ]),
+    query: { enabled: isConnected && idsToFetch.length > 0 }
+  });
+
+  // Process campaigns data: each campaign has 3 results [getCampaign, title, description]
   const campaigns = useMemo(() => {
     if (!campaignsData) return [];
     
-    return campaignsData
-      .map((result, index) => ({
-        id: campaignIds[index],
-        data: result.result as Campaign | undefined
-      }))
-      .filter(item => item.data !== undefined);
-  }, [campaignsData, campaignIds]);
+    return idsToFetch
+      .map((id, index) => {
+        const baseIndex = index * 3;
+        const campaignResult = campaignsData[baseIndex];
+        const titleResult = campaignsData[baseIndex + 1];
+        const descriptionResult = campaignsData[baseIndex + 2];
 
-  return campaigns;
+        if (campaignResult?.status !== 'success' || !campaignResult.result) {
+          console.error(`Campaign ${id} failed:`, campaignResult?.error);
+          return null;
+        }
+
+        const campaign = campaignResult.result as Campaign;
+        const title = titleResult?.status === 'success' ? (titleResult.result as string) : '';
+        const description = descriptionResult?.status === 'success' ? (descriptionResult.result as string) : '';
+
+        return {
+          id,
+          data: { ...campaign, title, description }
+        };
+      })
+      .filter((item): item is { id: number; data: Campaign & { title: string; description: string } } => item !== null);
+  }, [campaignsData, idsToFetch]);
+
+  return {
+    campaigns,
+    isLoading: isStatsLoading || isCampaignsLoading,
+    totalCount
+  };
 };

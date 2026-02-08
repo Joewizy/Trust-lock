@@ -17,6 +17,9 @@ export interface Campaign {
   totalFailedMilestones: number;
   state: CampaignState;
   acceptsEth: boolean;
+  /** From CampaignManager.campaignTitles - merged by useCampaign/useCampaignList */
+  title?: string;
+  description?: string;
 }
 
 export enum CampaignState {

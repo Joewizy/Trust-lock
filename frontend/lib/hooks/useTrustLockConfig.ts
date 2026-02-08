@@ -1,5 +1,5 @@
 import { useReadContract } from 'wagmi';
-import { TrustLockConfigAddress, TrustLockConfigABI } from '../contracts/abi';
+import { TrustLockConfigAddress, TrustLockConfigABI } from '../contracts/abi/config';
 
 // ========================================
 // CONFIG HOOK

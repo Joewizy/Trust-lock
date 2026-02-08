@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig } from 'wagmi'
 import { formatEther, parseEther } from 'viem'
-import { FaucetTokenAddress, FaucetTokenABI } from '@/lib/contracts/abi'
+import { FaucetTokenAddress, FaucetTokenABI } from '@/lib/contracts/abi/faucet'
 import { readContract } from 'wagmi/actions'
 
 export function useFaucet() {

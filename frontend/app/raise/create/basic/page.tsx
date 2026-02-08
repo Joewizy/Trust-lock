@@ -2,8 +2,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ImagePlus } from 'lucide-react';
 import { useAccount } from 'wagmi';
+import { toast } from 'react-hot-toast';
 
 import { PageShell } from '@/components/shared/page-shell';
 import { RaiseStepper } from '@/components/shared/raise-stepper';
@@ -14,7 +16,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { loadDraft, saveDraft } from '@/lib/raise-storage';
+import { loadDraft, saveDraft, clearDraft } from '@/lib/raise-storage';
+import { useTrustLock } from '@/lib/hooks/useTrustLock';
+import { AcknowledgementModal } from '@/components/raise/acknowledgement-modal';
 
 // Contract constants for validation
 const TITLE_MIN_LENGTH = 3;
@@ -29,11 +33,16 @@ const tokenOptions = [
 
 export default function CreateRaiseBasic() {
   const { address } = useAccount();
+  const router = useRouter();
+  const { createCampaign, isLoading, status } = useTrustLock();
+  
   const [title, setTitle] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [fundingGoal, setFundingGoal] = React.useState('');
   const [durationDays, setDurationDays] = React.useState('');
   const [selectedToken, setSelectedToken] = React.useState<'eth' | 'faucet'>('eth');
+  const [showModal, setShowModal] = React.useState(false);
+  const [error, setError] = React.useState('');
 
   React.useEffect(() => {
     const draft = loadDraft();
@@ -56,6 +65,79 @@ export default function CreateRaiseBasic() {
       creator: address ?? '0x0000000000000000000000000000000000000000',
     });
   }, [title, description, fundingGoal, durationDays, selectedToken, address]);
+
+  const validateForm = () => {
+    if (!title || !description || !fundingGoal || !durationDays) {
+      setError('Please fill in all required fields.');
+      return false;
+    }
+
+    if (title.length < TITLE_MIN_LENGTH || title.length > TITLE_MAX_LENGTH) {
+      setError(`Title must be between ${TITLE_MIN_LENGTH} and ${TITLE_MAX_LENGTH} characters.`);
+      return false;
+    }
+
+    if (description.length < DESCRIPTION_MIN_LENGTH || description.length > DESCRIPTION_MAX_LENGTH) {
+      setError(`Description must be between ${DESCRIPTION_MIN_LENGTH} and ${DESCRIPTION_MAX_LENGTH} characters.`);
+      return false;
+    }
+
+    if (Number(fundingGoal) <= 0) {
+      setError('Funding goal must be greater than 0.');
+      return false;
+    }
+
+    if (Number(durationDays) < 1) {
+      setError('Duration must be at least 1 day.');
+      return false;
+    }
+
+    setError('');
+    return true;
+  };
+
+  const handleCreateRaise = async () => {
+    if (!validateForm()) {
+      return;
+    }
+    setShowModal(true);
+  };
+
+  const handleConfirmCreate = async () => {
+    if (!address) {
+      setError('Please connect your wallet.');
+      return;
+    }
+
+    try {
+      const success = await createCampaign({
+        title,
+        description,
+        fundingGoal,
+        projectDuration: Math.ceil(Number(durationDays) / 7), // Convert days to weeks
+        acceptsEth: selectedToken === 'eth'
+      });
+
+      if (success) {
+        toast.success('Raise created successfully!');
+        clearDraft();
+        setShowModal(false);
+        // Redirect to raises page or dashboard
+        router.push('/raises');
+      }
+    } catch (err) {
+      console.error('Failed to create raise:', err);
+      setError('Failed to create raise. Please try again.');
+    }
+  };
+
+  React.useEffect(() => {
+    if (status && status.includes('✅')) {
+      // Success will be handled in handleConfirmCreate
+    } else if (status && status.includes('❌')) {
+      setError(status);
+    }
+  }, [status]);
 
   return (
     <PageShell>
@@ -142,23 +224,22 @@ export default function CreateRaiseBasic() {
                 Toggle between ETH or faucet tokens. You can only choose between faucet or ether once.
               </p>
             </div>
-            <div className='space-y-2'>
-              <Label>Upload cover image</Label>
-              <div className='flex items-center gap-3 rounded-2xl border border-dashed border-border/80 bg-white px-4 py-6 text-sm text-muted-foreground'>
-                <ImagePlus className='h-5 w-5 text-emerald-500' />
-                <span>Drag and drop or browse files</span>
-              </div>
-            </div>
             <div className='flex items-center justify-end gap-3'>
               <Link href='/' className={cn(buttonVariants({ variant: 'ghost' }))}>
                 Cancel
               </Link>
-              <Link
-                href='/raise/create/milestones'
+              <Button
+                onClick={handleCreateRaise}
+                disabled={!address || isLoading}
                 className={cn(buttonVariants({ variant: 'default' }))}>
-                Next
-              </Link>
+                {isLoading ? 'Creating...' : 'Create Raise'}
+              </Button>
             </div>
+            {error && (
+              <div className='text-sm text-red-600 mt-2'>
+                {error}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card className='bg-white/70'>
@@ -179,6 +260,16 @@ export default function CreateRaiseBasic() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Acknowledgement Modal */}
+      <AcknowledgementModal
+        open={showModal}
+        onOpenChange={setShowModal}
+        onCreateRaise={handleConfirmCreate}
+        isLoading={isLoading}
+        status={status}
+        error={error}
+      />
     </PageShell>
   );
 }

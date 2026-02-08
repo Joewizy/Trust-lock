@@ -2,477 +2,455 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { ArrowLeft, ExternalLink, Calendar, DollarSign, Target, Users } from 'lucide-react';
 import { useAccount } from 'wagmi';
+import { toast } from 'react-hot-toast';
+import { formatEther } from 'viem';
 
 import { PageShell } from '@/components/shared/page-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import {
-  getRaise,
-  upsertRaise,
-  type LocalMilestone,
-  type LocalRaise,
-} from '@/lib/raise-storage';
-import { InlineToast } from '@/components/shared/inline-toast';
-import { FeedbackModal } from '@/components/shared/feedback-modal';
+import { useTrustLock } from '@/lib/hooks/useTrustLock';
+import { CampaignState } from '@/lib/contracts/types';
+import { sepolia } from 'wagmi/chains';
 
-const OWNER_ADDRESS = '0x123400000000000000000000000000000000abcd';
+const formatAddress = (address: string) => 
+  `${address.slice(0, 6)}...${address.slice(-4)}`;
 
-const demoRaise: LocalRaise = {
-  id: 'openvote',
-  title: 'OpenVote Registry',
-  description:
-    'OpenVote Registry is a permissionless on-chain registry for community elections. It enables weighted or equal-vote elections and publishes tamper-proof results on-chain.',
-  fundingGoal: 8500,
-  durationDays: 45,
-  createdAt: '2025-11-11T00:00:00.000Z',
-  creator: OWNER_ADDRESS,
-  state: 'active',
-  fundingDeadline: '2025-12-26T00:00:00.000Z',
-  fundsReleased: 2000,
-  totalRaised: 5232,
-  acceptsEth: true,
-  acceptedToken: 'eth',
-  milestones: [
-    {
-      id: '1',
-      description: 'Design and UI implementation',
-      percent: 25,
-      createdAt: '2025-11-20T00:00:00.000Z',
-      status: 'voting',
-      votesFor: 80,
-      votesAgainst: 20,
-    },
-    {
-      id: '2',
-      description: 'Backend development',
-      percent: 25,
-      createdAt: '2025-12-01T00:00:00.000Z',
-      status: 'draft',
-      votesFor: 0,
-      votesAgainst: 0,
-    },
-    {
-      id: '3',
-      description: 'Launch and deployment',
-      percent: 25,
-      createdAt: '2025-12-10T00:00:00.000Z',
-      status: 'draft',
-      votesFor: 0,
-      votesAgainst: 0,
-    },
-  ],
+const formatEtherAmount = (value: bigint | string | undefined) => {
+  try {
+    if (value == null) return '0.0000';
+    const wei = typeof value === 'bigint' ? value : BigInt(String(value));
+    return parseFloat(formatEther(wei)).toFixed(4);
+  } catch {
+    return '0.0000';
+  }
 };
 
-const formatDate = (value?: string) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString();
+const formatDate = (timestamp: bigint | number | undefined) => {
+  if (timestamp == null) return '—';
+  const sec = typeof timestamp === 'bigint' ? Number(timestamp) : timestamp;
+  return new Date(sec * 1000).toLocaleDateString();
 };
 
-const formatAddress = (value?: string) => {
-  if (!value) return '—';
-  return `${value.slice(0, 6)}…${value.slice(-4)}`;
+const getStateColor = (state: CampaignState) => {
+  switch (state) {
+    case CampaignState.FUNDING:
+      return 'bg-blue-100 text-blue-800';
+    case CampaignState.ACTIVE:
+      return 'bg-green-100 text-green-800';
+    case CampaignState.VOTING:
+      return 'bg-yellow-100 text-yellow-800';
+    case CampaignState.COMPLETED:
+      return 'bg-purple-100 text-purple-800';
+    case CampaignState.FAILED:
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
 };
 
-const stateLabels: Record<LocalRaise['state'], string> = {
-  funding: 'Funding',
-  active: 'Active',
-  voting: 'Voting',
-  completed: 'Completed',
-  failed: 'Failed',
+const getStateText = (state: CampaignState) => {
+  switch (state) {
+    case CampaignState.FUNDING:
+      return 'Funding';
+    case CampaignState.ACTIVE:
+      return 'Active';
+    case CampaignState.VOTING:
+      return 'Voting';
+    case CampaignState.COMPLETED:
+      return 'Completed';
+    case CampaignState.FAILED:
+      return 'Failed';
+    default:
+      return 'Unknown';
+  }
 };
 
-export default function RaiseDetail({ params }: { params: { id: string } }) {
+export default function RaisePage() {
+  const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
+  const campaignId = params.id ? parseInt(params.id as string) : undefined;
+  
+  const { useCampaign, createMilestone, status, loading } = useTrustLock();
+  const { campaign: campaignData, refetchCampaign, isLoading: isCampaignLoading } = useCampaign(campaignId);
 
-  const [localRaise, setLocalRaise] = React.useState<LocalRaise | null>(null);
-  const [showToast, setShowToast] = React.useState(false);
-  const [toastMessage, setToastMessage] = React.useState('');
-  const [showModal, setShowModal] = React.useState(false);
-
+  // Milestone creation state
   const [milestoneDescription, setMilestoneDescription] = React.useState('');
   const [milestonePercent, setMilestonePercent] = React.useState('');
   const [milestoneError, setMilestoneError] = React.useState('');
 
-  React.useEffect(() => {
-    const storedRaise = getRaise(params.id);
-    setLocalRaise(storedRaise);
-  }, [params.id]);
+  const handleCreatorClick = (creatorAddress: string) => {
+    const url = `${sepolia.blockExplorers?.default?.url}/address/${creatorAddress}`;
+    window.open(url, '_blank');
+  };
 
-  React.useEffect(() => {
-    const created = searchParams.get('created');
-    const voted = searchParams.get('voted');
-    if (created === '1') {
-      setToastMessage('Raise created successfully.');
-      setShowToast(true);
-      setShowModal(true);
-    }
-    if (voted === '1') {
-      setToastMessage('Vote recorded successfully.');
-      setShowToast(true);
-    }
-  }, [searchParams]);
+  const handleContribute = () => {
+    if (!campaignId) return;
+    router.push(`/raise/${campaignId}/contribute`);
+  };
 
-  const raise = localRaise ?? demoRaise;
-  const basePath = `/raise/${params.id}`;
-  const isOwner = address
-    ? address.toLowerCase() === raise.creator.toLowerCase()
-    : raise.creator.toLowerCase() === OWNER_ADDRESS.toLowerCase();
+  const handleCreateMilestone = async () => {
+    if (!campaignId) return;
 
-  const fundingProgress = raise.fundingGoal
-    ? Math.min(100, Math.round((raise.totalRaised / raise.fundingGoal) * 100))
-    : 0;
-
-  const fundingGoalMet = raise.totalRaised >= raise.fundingGoal;
-
-  const milestones = raise.milestones.length > 0 ? raise.milestones : [];
-
-  const handleCreateMilestone = () => {
+    // Validate
     const percent = Number(milestonePercent);
-    if (!milestoneDescription.trim()) {
-      setMilestoneError('Milestone description is required.');
-      return;
-    }
-    if (!milestonePercent || Number.isNaN(percent)) {
-      setMilestoneError('Enter the funding percent for this milestone.');
-      return;
-    }
-    if (percent % 5 !== 0) {
-      setMilestoneError('Funding percent must be a multiple of 5.');
-      return;
-    }
-    if (milestones.length === 0 && percent > 10) {
-      setMilestoneError('First milestone cannot exceed 10%.');
-      return;
-    }
-    if (percent > 25) {
-      setMilestoneError('Milestones cannot exceed 25%.');
+    if (!milestoneDescription || !milestonePercent) {
+      setMilestoneError('Please fill in all fields');
       return;
     }
 
-    const newMilestone: LocalMilestone = {
-      id: String(milestones.length + 1),
-      description: milestoneDescription.trim(),
-      percent,
-      createdAt: new Date().toISOString(),
-      status: 'voting',
-      votesFor: 0,
-      votesAgainst: 0,
-    };
-
-    const updatedRaise: LocalRaise = {
-      ...raise,
-      milestones: [...milestones, newMilestone],
-    };
-
-    if (localRaise) {
-      upsertRaise(updatedRaise);
-      setLocalRaise(updatedRaise);
+    if (percent < 5 || percent > 25 || percent % 5 !== 0) {
+      setMilestoneError('Percentage must be between 5-25% and a multiple of 5');
+      return;
     }
 
-    setMilestoneDescription('');
-    setMilestonePercent('');
     setMilestoneError('');
 
-    router.push(`/raise/${params.id}/milestone/${newMilestone.id}?created=1`);
+    const success = await createMilestone(campaignId, milestoneDescription, percent);
+    
+    if (success) {
+      toast.success('Milestone created!');
+      setMilestoneDescription('');
+      setMilestonePercent('');
+      refetchCampaign();
+    } else {
+      toast.error('Failed to create milestone');
+    }
   };
+
+  if (!isConnected) {
+    return (
+      <PageShell>
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+          <h1 className="text-2xl font-semibold">Connect Your Wallet</h1>
+          <p className="text-muted-foreground">Please connect your wallet to view this raise.</p>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (!campaignId) {
+    return (
+      <PageShell>
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+          <h1 className="text-2xl font-semibold">Raise Not Found</h1>
+          <p className="text-muted-foreground">Invalid campaign ID.</p>
+          <Link href="/raises">
+            <Button>Back to Raises</Button>
+          </Link>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (isCampaignLoading) {
+    return (
+      <PageShell>
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+          <p className="text-muted-foreground">Loading campaign...</p>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (!campaignData) {
+    return (
+      <PageShell>
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+          <h1 className="text-2xl font-semibold">Raise Not Found</h1>
+          <p className="text-muted-foreground">This raise doesn't exist or has been removed.</p>
+          <Link href="/raises">
+            <Button>Back to Raises</Button>
+          </Link>
+        </div>
+      </PageShell>
+    );
+  }
+
+  const campaign = campaignData;
+
+  // Contract uses fundingDeadline (uint64) - viem returns bigint or number
+  const deadline = (campaign as { deadline?: bigint }).deadline ?? campaign.fundingDeadline;
+  const title = campaign.title ?? 'Campaign';
+  const description = campaign.description ?? '';
+
+  // Calculate progress (handle bigint or string from contract)
+  const totalRaisedWei = typeof campaign.totalRaised === 'bigint' ? campaign.totalRaised : BigInt(String(campaign.totalRaised ?? '0'));
+  const fundingGoalWei = typeof campaign.fundingGoal === 'bigint' ? campaign.fundingGoal : BigInt(String(campaign.fundingGoal ?? '1'));
+  const totalRaised = Number(formatEther(totalRaisedWei));
+  const fundingGoal = Number(formatEther(fundingGoalWei));
+  const progressPercentage = Math.min((totalRaised / fundingGoal) * 100, 100);
+  const fundingGoalMet = totalRaised >= fundingGoal;
+  const isOwner = address?.toLowerCase() === campaign.creator.toLowerCase();
 
   return (
     <PageShell>
-      <InlineToast
-        open={showToast}
-        onClose={() => setShowToast(false)}
-        title={toastMessage}
-        description='Head to the raise timeline to see the latest updates.'
-      />
-      <FeedbackModal
-        open={showModal}
-        title='Update complete'
-        description='Your latest action has been recorded on the raise.'
-        primaryAction={{
-          label: 'Continue',
-          onClick: () => setShowModal(false),
-        }}
-      />
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Link href="/raises">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Raises
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-3xl font-semibold">{title}</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <Badge 
+                variant="secondary" 
+                className={cn(getStateColor(campaign.state))}
+              >
+                {getStateText(campaign.state)}
+              </Badge>
+              {campaign.acceptsEth && (
+                <Badge variant="outline">ETH</Badge>
+              )}
+            </div>
+          </div>
+        </div>
 
-      <section className='grid gap-8 lg:grid-cols-[1.4fr_0.6fr]'>
-        <div className='space-y-8'>
-          <div className='space-y-4'>
-            <h1 className='text-4xl font-semibold sm:text-5xl font-[var(--font-display)]'>
-              {raise.title}
-            </h1>
-            <p className='max-w-2xl text-base text-muted-foreground'>
-              {raise.description}
-            </p>
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Description Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Description</CardTitle>
+              </CardHeader>
+              <CardContent>
+            <p className="text-muted-foreground leading-relaxed">
+                {description}
+              </p>
+              </CardContent>
+            </Card>
+
+            {/* Stats Grid */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <DollarSign className="mr-2 h-5 w-5" />
+                    Funding Goal
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {formatEtherAmount(campaign.fundingGoal)} ETH
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Target className="mr-2 h-5 w-5" />
+                    Total Raised
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-emerald-600">
+                    {formatEtherAmount(campaign.totalRaised)} ETH
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="mr-2 h-5 w-5" />
+                    Deadline
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-bold">
+                    {formatDate(deadline)}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Users className="mr-2 h-5 w-5" />
+                    Creator
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="font-mono text-sm">
+                      {formatAddress(campaign.creator)}
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleCreatorClick(campaign.creator)}
+                      className="w-full"
+                    >
+                      <ExternalLink className="mr-2 h-3 w-3" />
+                      View on Etherscan
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Progress Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Funding Progress</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progress</span>
+                    <span className="font-semibold">{progressPercentage.toFixed(1)}%</span>
+                  </div>
+                  <Progress value={progressPercentage} />
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Raised</span>
+                    <div className="font-semibold">{formatEtherAmount(campaign.totalRaised)} ETH</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Goal</span>
+                    <div className="font-semibold">{formatEtherAmount(campaign.fundingGoal)} ETH</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <Card className='overflow-hidden bg-white/80'>
-            <div className='h-60 w-full bg-gradient-to-br from-emerald-100 via-emerald-50 to-sky-100' />
-            <CardContent className='space-y-4'>
-              <div className='flex flex-wrap items-center gap-3'>
-                <Badge variant='success'>{stateLabels[raise.state]}</Badge>
-                {fundingGoalMet ? (
-                  <Badge variant='outline'>Funding goal met</Badge>
-                ) : (
-                  <Badge variant='secondary'>Funding in progress</Badge>
-                )}
-                {isOwner ? <Badge variant='secondary'>Creator</Badge> : null}
-              </div>
-              <p className='text-sm text-muted-foreground'>
-                Funding milestones unlock after contributors vote. Track approvals,
-                submit proof, and release funds with confidence.
-              </p>
-            </CardContent>
-          </Card>
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Actions Card */}
+            {!isOwner && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button 
+                    onClick={handleContribute}
+                    className="w-full"
+                    disabled={campaign.state !== CampaignState.FUNDING}
+                  >
+                    Contribute to Raise
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {campaign.state === CampaignState.FUNDING 
+                      ? 'Help fund this milestone-based raise'
+                      : 'This raise is no longer accepting contributions'
+                    }
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
-          {isOwner ? (
-            <Card id='create-milestone' className='bg-white/85'>
+            {/* Create Milestone Card (Owner Only) */}
+            {isOwner && (
+              <Card id='create-milestone' className='bg-white/85'>
+                <CardHeader>
+                  <CardTitle>Create a Milestone</CardTitle>
+                  <CardDescription>
+                    Milestones can be created once the funding goal is reached.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className='space-y-4'>
+                  {!fundingGoalMet ? (
+                    <div className='rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700'>
+                      Funding goal not met yet. Once the raise reaches {formatEtherAmount(campaign.fundingGoal)} ETH,
+                      you can create milestones.
+                    </div>
+                  ) : (
+                    <>
+                      <div className='space-y-2'>
+                        <label className='text-sm font-medium'>Milestone Description</label>
+                        <Textarea
+                          value={milestoneDescription}
+                          onChange={(e) => setMilestoneDescription(e.target.value)}
+                          placeholder='Describe what will be delivered for this milestone.'
+                        />
+                      </div>
+                      <div className='space-y-2'>
+                        <label className='text-sm font-medium'>Funds to Request (%)</label>
+                        <Input
+                          type='number'
+                          min={5}
+                          max={25}
+                          step={5}
+                          value={milestonePercent}
+                          onChange={(e) => setMilestonePercent(e.target.value)}
+                          placeholder='10'
+                        />
+                        {milestoneError ? (
+                          <p className='text-xs text-rose-600'>{milestoneError}</p>
+                        ) : (
+                          <p className='text-xs text-muted-foreground'>
+                            Must be a multiple of 5, between 5% and 25%.
+                          </p>
+                        )}
+                      </div>
+                      <Button 
+                        onClick={handleCreateMilestone}
+                        disabled={loading}
+                        className="w-full"
+                      >
+                        {loading ? 'Creating...' : 'Create Milestone'}
+                      </Button>
+                      {status && (
+                        <p className="text-sm text-center">{status}</p>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Summary Card */}
+            <Card className='bg-white/85'>
               <CardHeader>
-                <CardTitle>Create a milestone</CardTitle>
+                <CardTitle>Raise Summary</CardTitle>
                 <CardDescription>
-                  Funding must be active before you can request milestone releases.
+                  {formatEtherAmount(campaign.totalRaised)} out of {formatEtherAmount(campaign.fundingGoal)} ETH raised
                 </CardDescription>
               </CardHeader>
               <CardContent className='space-y-4'>
-                {!fundingGoalMet ? (
-                  <div className='rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700'>
-                    Funding goal not met yet. Once the raise reaches the funding goal,
-                    you can create milestones.
+                <Progress value={progressPercentage} />
+                <Separator />
+                <div className='space-y-2 text-sm text-muted-foreground'>
+                  <div className='flex items-center justify-between'>
+                    <span>Creator</span>
+                    <span className="font-mono">{formatAddress(campaign.creator)}</span>
                   </div>
-                ) : (
-                  <>
-                    <div className='space-y-2'>
-                      <label className='text-sm font-medium'>Milestone description</label>
-                      <Textarea
-                        value={milestoneDescription}
-                        onChange={(event) => setMilestoneDescription(event.target.value)}
-                        placeholder='Describe the proof you will submit for this milestone.'
-                      />
-                    </div>
-                    <div className='space-y-2'>
-                      <label className='text-sm font-medium'>Funds to request (%)</label>
-                      <Input
-                        type='number'
-                        min={0}
-                        max={25}
-                        value={milestonePercent}
-                        onChange={(event) => setMilestonePercent(event.target.value)}
-                        placeholder='10'
-                      />
-                      {milestoneError ? (
-                        <p className='text-xs text-rose-600'>{milestoneError}</p>
-                      ) : (
-                        <p className='text-xs text-muted-foreground'>
-                          Multiples of 5 only. First milestone max 10%, all milestones
-                          max 25%.
-                        </p>
-                      )}
-                    </div>
-                    <Button onClick={handleCreateMilestone}>
-                      Create milestone
-                    </Button>
-                  </>
-                )}
+                  <div className='flex items-center justify-between'>
+                    <span>Deadline</span>
+                    <span>{formatDate(deadline)}</span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span>State</span>
+                    <span>{getStateText(campaign.state)}</span>
+                  </div>
+                  <div className='flex items-center justify-between'>
+                    <span>Accepts</span>
+                    <span>{campaign.acceptsEth ? 'ETH' : 'ERC20'}</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          ) : null}
-
-          <div className='space-y-5'>
-            {milestones.length === 0 ? (
-              <Card className='bg-white/85'>
-                <CardContent className='py-8 text-sm text-muted-foreground'>
-                  No milestones yet. Once funding is active, the creator can add the
-                  first milestone for contributors to review.
-                </CardContent>
-              </Card>
-            ) : (
-              milestones.map((milestone) => {
-                const voteProgress =
-                  milestone.votesFor + milestone.votesAgainst > 0
-                    ? Math.round(
-                        (milestone.votesFor /
-                          (milestone.votesFor + milestone.votesAgainst)) *
-                          100,
-                      )
-                    : 0;
-                const statusLabel =
-                  milestone.status === 'voting'
-                    ? 'Voting Open'
-                    : milestone.status === 'approved'
-                      ? 'Approved'
-                      : milestone.status === 'rejected'
-                        ? 'Rejected'
-                        : 'Pending';
-
-                return (
-                  <Card key={milestone.id} className='bg-white/85'>
-                    <CardHeader>
-                      <div className='flex flex-wrap items-center justify-between gap-2'>
-                        <CardTitle>Milestone {milestone.id}</CardTitle>
-                        <Badge
-                          variant={
-                            milestone.status === 'voting'
-                              ? 'warning'
-                              : milestone.status === 'approved'
-                                ? 'success'
-                                : 'secondary'
-                          }>
-                          {statusLabel}
-                        </Badge>
-                      </div>
-                      <CardDescription>{milestone.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className='space-y-4'>
-                      <div className='flex items-center justify-between text-sm text-muted-foreground'>
-                        <span>Allocation</span>
-                        <span>{milestone.percent}%</span>
-                      </div>
-                      <div className='space-y-2'>
-                        <Progress value={voteProgress} />
-                        <div className='flex items-center justify-between text-xs text-muted-foreground'>
-                          <span>{voteProgress}% approved</span>
-                          <span>
-                            {milestone.status === 'voting'
-                              ? 'Voting open'
-                              : 'Not started'}
-                          </span>
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className='flex flex-wrap gap-3'>
-                      <Link
-                        href={`${basePath}/milestone/${milestone.id}`}
-                        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}>
-                        View milestone
-                      </Link>
-                      {milestone.status === 'voting' ? (
-                        <Link
-                          href={`${basePath}/vote`}
-                          className={cn(
-                            buttonVariants({ variant: 'outline', size: 'sm' }),
-                          )}>
-                          Cast vote
-                        </Link>
-                      ) : null}
-                    </CardFooter>
-                  </Card>
-                );
-              })
-            )}
           </div>
         </div>
-
-        <div className='space-y-6'>
-          <Card className='bg-white/85'>
-            <CardHeader>
-              <CardTitle>Raise summary</CardTitle>
-              <CardDescription>
-                ${raise.totalRaised.toLocaleString()} out of ${raise.fundingGoal.toLocaleString()} raised
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-4'>
-              <Progress value={fundingProgress} />
-              <Separator />
-              <div className='space-y-2 text-sm text-muted-foreground'>
-                <div className='flex items-center justify-between'>
-                  <span>Created</span>
-                  <span>{formatDate(raise.createdAt)}</span>
-                </div>
-                <div className='flex items-center justify-between'>
-                  <span>Creator</span>
-                  <span>{formatAddress(raise.creator)}</span>
-                </div>
-                <div className='flex items-center justify-between'>
-                  <span>Duration</span>
-                  <span>{raise.durationDays} days</span>
-                </div>
-                <div className='flex items-center justify-between'>
-                  <span>Funding goal</span>
-                  <span>${raise.fundingGoal.toLocaleString()}</span>
-                </div>
-                <div className='flex items-center justify-between'>
-                  <span>Funding deadline</span>
-                  <span>{formatDate(raise.fundingDeadline)}</span>
-                </div>
-                <div className='flex items-center justify-between'>
-                  <span>State</span>
-                  <span>{stateLabels[raise.state]}</span>
-                </div>
-                <div className='flex items-center justify-between'>
-                  <span>Funds released</span>
-                  <span>${raise.fundsReleased.toLocaleString()}</span>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className='flex flex-col gap-3'>
-              {isOwner ? (
-                <Button
-                  className='w-full'
-                  disabled={!fundingGoalMet}
-                  onClick={() => {
-                    if (fundingGoalMet) {
-                      document
-                        .querySelector('#create-milestone')
-                        ?.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }}>
-                  Create milestone
-                </Button>
-              ) : (
-                <Link
-                  href={`${basePath}/contribute`}
-                  className={cn(buttonVariants({ variant: 'default' }), 'w-full')}>
-                  Contribute to Raise
-                </Link>
-              )}
-              <Link
-                href={`${basePath}/milestone/1/submit-proof`}
-                className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}>
-                Submit milestone proof
-              </Link>
-              <Link
-                href={`${basePath}/vote`}
-                className={cn(buttonVariants({ variant: 'ghost' }), 'w-full')}>
-                Review and vote
-              </Link>
-            </CardFooter>
-          </Card>
-
-          <Card className='bg-emerald-600 text-white'>
-            <CardHeader>
-              <CardTitle className='text-white'>Share this raise</CardTitle>
-              <CardDescription className='text-emerald-50'>
-                Invite contributors and keep the momentum going.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link
-                href='/'
-                className={cn(buttonVariants({ variant: 'secondary' }), 'w-full')}>
-                Copy share link
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+      </div>
     </PageShell>
   );
 }
