@@ -16,6 +16,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { loadDraft, saveDraft } from '@/lib/raise-storage';
 
+// Contract constants for validation
+const TITLE_MIN_LENGTH = 3;
+const TITLE_MAX_LENGTH = 100;
+const DESCRIPTION_MIN_LENGTH = 10;
+const DESCRIPTION_MAX_LENGTH = 1000;
+
 const tokenOptions = [
   { id: 'eth', label: 'ETH' },
   { id: 'faucet', label: 'Faucet ERC' },
@@ -70,19 +76,31 @@ export default function CreateRaiseBasic() {
           </CardHeader>
           <CardContent className='space-y-5'>
             <div className='space-y-2'>
-              <Label>Project name</Label>
+              <div className='flex items-center justify-between'>
+                <Label>Project name</Label>
+                <span className='text-sm text-muted-foreground'>
+                  {title.length}/{TITLE_MAX_LENGTH}
+                </span>
+              </div>
               <Input
                 placeholder='OpenVote Registry'
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
+                maxLength={TITLE_MAX_LENGTH}
               />
             </div>
             <div className='space-y-2'>
-              <Label>Description</Label>
+              <div className='flex items-center justify-between'>
+                <Label>Description</Label>
+                <span className='text-sm text-muted-foreground'>
+                  {description.length}/{DESCRIPTION_MAX_LENGTH}
+                </span>
+              </div>
               <Textarea
                 placeholder='Describe the mission, impact, and what you will deliver.'
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
+                maxLength={DESCRIPTION_MAX_LENGTH}
               />
             </div>
             <div className='grid gap-4 sm:grid-cols-2'>
@@ -121,8 +139,7 @@ export default function CreateRaiseBasic() {
                 ))}
               </div>
               <p className='text-xs text-muted-foreground'>
-                Toggle between ETH or faucet tokens. You can switch later, but only one
-                option is active when the raise goes live.
+                Toggle between ETH or faucet tokens. You can only choose between faucet or ether once.
               </p>
             </div>
             <div className='space-y-2'>

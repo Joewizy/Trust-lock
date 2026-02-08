@@ -1,15 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { 
-  useAccount, 
-  useWriteContract, 
-  useReadContract, 
-  useReadContracts,
-  useConfig 
-} from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig, useReadContracts } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
-import { TrustLockCoreAddress, TrustLockCoreABI } from '../contracts/abi';
+import { TrustLockCoreAddress, TrustLockCoreABI, FaucetTokenAddress } from '../contracts/abi';
 import { Milestone, Campaign } from '../contracts/types';
+import { useFaucet } from './useFaucet';
+import { useFormattedConfig } from './useTrustLockConfig';
 
 // ========================================
 // HOOK
@@ -19,6 +15,8 @@ export const useTrustLock = () => {
   const { address, isConnected } = useAccount();
   const config = useConfig();
   const { writeContractAsync, isPending } = useWriteContract();
+  const { approveTokens } = useFaucet();
+  const formattedConfig = useFormattedConfig();
 
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,8 +32,8 @@ export const useTrustLock = () => {
     query: { enabled: isConnected }
   });
 
-  const totalCampaigns = protocolStats?.[0] ? Number(protocolStats[0]) : 0;
-  const totalProtocolFees = protocolStats?.[1] ? Number(protocolStats[1]) : 0;
+  const totalCampaigns = protocolStats && Array.isArray(protocolStats) ? Number(protocolStats[0]) : 0;
+  const totalProtocolFees = protocolStats && Array.isArray(protocolStats) ? Number(protocolStats[1]) : 0;
 
   // ========================================
   // CAMPAIGN DATA (requires campaignId)
@@ -198,7 +196,6 @@ export const useTrustLock = () => {
     fundingGoal: string;
     projectDuration: number; // in weeks
     acceptsEth: boolean;
-    acceptedToken?: string;
   }): Promise<boolean> => {
     if (!address || !isConnected) {
       setStatus('❌ Connect wallet first');
@@ -208,10 +205,18 @@ export const useTrustLock = () => {
     try {
       setStatus('⏳ Creating campaign...');
       setLoading(true);
+      
+      // Use config values for validation
+      const maxDurationWeeks = formattedConfig.projectMaxDurationWeeks;
+      if (params.projectDuration > maxDurationWeeks) {
+        setStatus(`❌ Campaign duration cannot exceed ${maxDurationWeeks} weeks`);
+        return false;
+      }
 
+      // Use correct token address based on acceptsEth
+      const tokenAddress = params.acceptsEth ? ethers.ZeroAddress : FaucetTokenAddress;
       const fundingGoalWei = ethers.parseEther(params.fundingGoal);
       const durationSeconds = params.projectDuration * 7 * 24 * 60 * 60; // weeks to seconds
-      const tokenAddress = params.acceptedToken || ethers.ZeroAddress;
 
       const tx = await writeContractAsync({
         address: TrustLockCoreAddress,
@@ -234,10 +239,13 @@ export const useTrustLock = () => {
       return true;
 
     } catch (error: any) {
+      console.log("error creating campaign", error)
       if (error.message?.includes('ENSRequired')) {
         setStatus('❌ ENS name required to create campaigns');
-      } else if (!error.message?.includes('User rejected')) {
-        setStatus('❌ Campaign creation failed');
+      } else if (error.message?.includes('User rejected') || error.message?.includes('User denied')) {
+        setStatus(''); 
+      } else {
+        setStatus(`Error message: ${error.message}`);
       }
       return false;
     } finally {
@@ -250,6 +258,7 @@ export const useTrustLock = () => {
   // ========================================
 
   const contribute = async (campaignId: number, amount: string, isEth: boolean = true): Promise<boolean> => {
+    const {approveTokens} = useFaucet();
     if (!address || !isConnected) {
       setStatus('❌ Connect wallet first');
       return false;
