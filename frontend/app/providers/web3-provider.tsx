@@ -16,7 +16,15 @@ const config = getDefaultConfig({
   },
 });
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 export function Web3Provider({ children }: { children: React.ReactNode }) {
   return (

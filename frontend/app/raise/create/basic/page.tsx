@@ -3,9 +3,10 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ImagePlus } from 'lucide-react';
+import { ImagePlus, ExternalLink } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { toast } from 'react-hot-toast';
+import { sepolia } from 'wagmi/chains';
 
 import { PageShell } from '@/components/shared/page-shell';
 import { RaiseStepper } from '@/components/shared/raise-stepper';
@@ -110,7 +111,7 @@ export default function CreateRaiseBasic() {
     }
 
     try {
-      const success = await createCampaign({
+      const result = await createCampaign({
         title,
         description,
         fundingGoal,
@@ -118,12 +119,34 @@ export default function CreateRaiseBasic() {
         acceptsEth: selectedToken === 'eth'
       });
 
-      if (success) {
-        toast.success('Raise created successfully!');
+      if (result.success) {
+        const txUrl = result.txHash && sepolia?.blockExplorers?.default?.url
+          ? `${sepolia.blockExplorers.default.url}/tx/${result.txHash}`
+          : null;
+
+        toast.success(
+          (t) => (
+            <div className="flex flex-col gap-2">
+              <span>Raise created successfully!</span>
+              {txUrl && (
+                <a
+                  href={txUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm underline hover:no-underline"
+                  onClick={() => toast.dismiss(t.id)}
+                >
+                  View transaction <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+          ),
+          { duration: 6000 }
+        );
         clearDraft();
         setShowModal(false);
-        // Redirect to raises page or dashboard
-        router.push('/raises');
+        // Delay redirect so user can see the toast and tx link
+        setTimeout(() => router.push('/raises'), 4500);
       }
     } catch (err) {
       console.error('Failed to create raise:', err);

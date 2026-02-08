@@ -131,7 +131,7 @@ export default function Home() {
             </CardContent>
             <CardFooter>
               <Link
-                href={`/raise/${raise.id}`}
+                href="/raises"
                 className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
               >
                 View raise

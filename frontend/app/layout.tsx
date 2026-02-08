@@ -7,16 +7,22 @@ import { Toaster } from 'react-hot-toast';
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
+  display: 'swap',
+  preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+  display: 'swap',
+  preload: false,
 });
 
 const fraunces = Fraunces({
   variable: '--font-display',
   subsets: ['latin'],
+  display: 'swap',
+  preload: true,
 });
 
 export const metadata: Metadata = {

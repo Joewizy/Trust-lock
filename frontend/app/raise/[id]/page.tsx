@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { useTrustLock } from '@/lib/hooks/useTrustLock';
+import { useCampaign, useTrustLockRaiseActions } from '@/lib/hooks/useTrustLock';
 import { CampaignState } from '@/lib/contracts/types';
 import { sepolia } from 'wagmi/chains';
 
@@ -80,8 +80,8 @@ export default function RaisePage() {
   const { address, isConnected } = useAccount();
   const campaignId = params.id ? parseInt(params.id as string) : undefined;
   
-  const { useCampaign, createMilestone, status, loading } = useTrustLock();
   const { campaign: campaignData, refetchCampaign, isLoading: isCampaignLoading } = useCampaign(campaignId);
+  const { createMilestone, status, loading } = useTrustLockRaiseActions();
 
   // Milestone creation state
   const [milestoneDescription, setMilestoneDescription] = React.useState('');
