@@ -1,9 +1,9 @@
 import Link from "next/link"
-import { ArrowUpRight, Search } from "lucide-react"
+import { ArrowUpRight, Search, Droplet } from "lucide-react"
 
 import { PageShell } from "@/components/shared/page-shell"
 import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -15,6 +15,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
+import { useFaucet } from "@/lib/hooks/useFaucet"
+import { useAccount } from "wagmi"
 
 const categories = ["Open Governance", "Frontend", "Public Goods", "DeSci"]
 
@@ -55,6 +57,9 @@ const raises = [
 ]
 
 export default function Home() {
+  const { address } = useAccount();
+  const { balance: tltBalance, canClaim, claimTokens } = useFaucet();
+
   return (
     <PageShell>
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
@@ -105,6 +110,46 @@ export default function Home() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Faucet Section */}
+      {address && (
+        <section className="mt-8">
+          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Droplet className="h-5 w-5 text-blue-600" />
+                Get Test Tokens
+              </CardTitle>
+              <CardDescription>
+                Claim free TLT tokens to test the platform
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Your Balance</p>
+                <p className="text-2xl font-bold text-blue-900">
+                  {parseFloat(tltBalance).toFixed(2)} <span className="text-lg text-muted-foreground">TLT</span>
+                </p>
+              </div>
+              <div className="text-right">
+                {canClaim ? (
+                  <Button onClick={claimTokens} className="bg-blue-600 hover:bg-blue-700">
+                    <Droplet className="mr-2 h-4 w-4" />
+                    Claim Tokens
+                  </Button>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    <p>Claim available in 24h</p>
+                    <Link href="/faucet" className="text-blue-600 hover:underline text-xs">
+                      View faucet →
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       <section className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div className="col-span-full text-center text-sm text-muted-foreground mb-4">

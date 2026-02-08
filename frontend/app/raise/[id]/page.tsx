@@ -27,12 +27,18 @@ const formatAddress = (address: string) =>
 
 const formatEtherAmount = (value: bigint | string | undefined) => {
   try {
-    if (value == null) return '0.0000';
+    if (value == null) return '0.00';
     const wei = typeof value === 'bigint' ? value : BigInt(String(value));
-    return parseFloat(formatEther(wei)).toFixed(4);
+    const amount = parseFloat(formatEther(wei));
+    return amount.toFixed(2);
   } catch {
-    return '0.0000';
+    return '0.00';
   }
+};
+
+const getTokenSymbol = (acceptsEth: boolean, acceptedToken?: string) => {
+  if (acceptsEth) return 'ETH';
+  return 'USD'; 
 };
 
 const formatDate = (timestamp: bigint | number | undefined) => {
@@ -225,6 +231,7 @@ export default function RaisePage() {
   const progressPercentage = Math.min((totalRaised / fundingGoal) * 100, 100);
   const fundingGoalMet = totalRaised >= fundingGoal;
   const isOwner = address?.toLowerCase() === campaign.creator.toLowerCase();
+  const tokenSymbol = getTokenSymbol(campaign.acceptsEth, campaign.acceptedToken);
 
   return (
     <PageShell>
@@ -282,11 +289,11 @@ export default function RaisePage() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Raised</span>
-                      <div className="font-semibold">{formatEtherAmount(campaign.totalRaised)} ETH</div>
+                      <div className="font-semibold">{formatEtherAmount(campaign.totalRaised)} {tokenSymbol}</div>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Goal</span>
-                      <div className="font-semibold">{formatEtherAmount(campaign.fundingGoal)} ETH</div>
+                      <div className="font-semibold">{formatEtherAmount(campaign.fundingGoal)} {tokenSymbol}</div>
                     </div>
                   </div>
                 </div>
@@ -368,7 +375,7 @@ export default function RaisePage() {
                 <CardContent className="space-y-4">
                   {!fundingGoalMet ? (
                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-                      Funding goal not met yet. Once the raise reaches {formatEtherAmount(campaign.fundingGoal)} ETH, you can create milestones.
+                      Funding goal not met yet. Once the raise reaches {formatEtherAmount(campaign.fundingGoal)} {tokenSymbol}, you can create milestones.
                     </div>
                   ) : (
                     <>

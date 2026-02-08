@@ -8,6 +8,7 @@ import { FaucetTokenAddress } from '../contracts/abi/faucet';
 import { Milestone, Campaign } from '../contracts/types';
 import { useFaucet } from './useFaucet';
 import { useFormattedConfig } from './useTrustLockConfig';
+import { FaucetTokenABI, TreasuryAddress } from '../contracts/abi';
 
 
 export function useCampaign(campaignId?: number) {
@@ -118,7 +119,7 @@ export const useTrustLock = () => {
   const { address, isConnected } = useAccount();
   const config = useConfig();
   const { writeContractAsync, isPending } = useWriteContract();
-  const { approveTokens } = useFaucet();
+  const { approveTokens, checkAllowance } = useFaucet();
   const formattedConfig = useFormattedConfig();
 
   const [status, setStatus] = useState('');
@@ -330,6 +331,7 @@ export const useTrustLock = () => {
       setLoading(true);
 
       if (isEth) {
+        // ETH contribution - no approval needed
         const amountWei = ethers.parseEther(amount);
         
         const tx = await writeContractAsync({
@@ -342,18 +344,51 @@ export const useTrustLock = () => {
 
         await waitForTransactionReceipt(config, { hash: tx });
       } else {
-        await approveTokens(TrustLockCoreAddress, amount);
+        // ERC20 contribution - check allowance first
+        const { isSufficient } = await checkAllowance(TreasuryAddress, amount);
         
-        const amountWei = ethers.parseEther(amount);
-        
-        const tx = await writeContractAsync({
-          address: TrustLockCoreAddress,
-          abi: TrustLockCoreABI,
-          functionName: 'contribute',
-          args: [BigInt(campaignId), amountWei],
-        });
+        if (!isSufficient) {
+          setStatus('❌ Insufficient allowance. Approving...');
+          
+          // Auto-approve tokens for Treasury
+          try {
+            const approveTxHash = await writeContractAsync({
+              address: FaucetTokenAddress,
+              abi: FaucetTokenABI,
+              functionName: 'approve',
+              args: [TreasuryAddress, ethers.parseEther(amount)],
+            });
 
-        await waitForTransactionReceipt(config, { hash: tx });
+            await waitForTransactionReceipt(config, { hash: approveTxHash });
+            setStatus('⏳ Approval confirmed. Contributing...');
+          } catch (error) {
+            console.log("error approving tokens", error)
+            if (error instanceof Error && error.message.includes('User rejected')) {
+              setStatus('');
+              return false;
+            }
+            setStatus('❌ Approval failed');
+            return false;
+          }
+        }
+        
+        // Contribute with approved tokens
+        try {
+          const amountWei = ethers.parseEther(amount);
+          
+          const tx = await writeContractAsync({
+            address: TrustLockCoreAddress,
+            abi: TrustLockCoreABI,
+            functionName: 'contribute',
+            args: [BigInt(campaignId), amountWei],
+          });
+
+          await waitForTransactionReceipt(config, { hash: tx });
+        } catch (error) {
+          console.log("error contributing", error)
+          setStatus('❌ Contribution failed');
+          return false;
+        }
       }
       
       setStatus('✅ Contribution successful!');

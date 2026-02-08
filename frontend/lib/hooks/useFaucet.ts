@@ -1,8 +1,12 @@
+'use client';
+
 import { useState, useEffect } from 'react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConfig } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useConfig } from 'wagmi'
+import { waitForTransactionReceipt } from 'wagmi/actions'
 import { formatEther, parseEther } from 'viem'
 import { FaucetTokenAddress, FaucetTokenABI } from '@/lib/contracts/abi/faucet'
 import { readContract } from 'wagmi/actions'
+import { TreasuryAddress } from '../contracts/abi';
 
 export function useFaucet() {
   const { address, isConnected } = useAccount()
@@ -71,17 +75,11 @@ export function useFaucet() {
 
   // Write contract operations
   const { 
-    writeContract, 
+    writeContractAsync, 
     data: hash, 
     isPending: isWritePending,
     reset: resetWrite 
   } = useWriteContract()
-
-  // Wait for transaction confirmation
-  const { 
-    isLoading: isTxLoading, 
-    isSuccess: isTxSuccess 
-  } = useWaitForTransactionReceipt({ hash })
 
   // Calculate cooldown status
   const getCooldownStatus = () => {
@@ -135,7 +133,7 @@ export function useFaucet() {
 
     try {
       setStatus('⏳ Claiming tokens...')
-      writeContract({
+      await writeContractAsync({
         address: FaucetTokenAddress,
         abi: FaucetTokenABI,
         functionName: 'claim'
@@ -149,31 +147,54 @@ export function useFaucet() {
   }
 
   // Approve faucet tokens for spending
-  const approveTokens = async (
-    spenderAddress: `0x${string}`, 
-    amount?: string
-  ) => {
+  const approveTokens = async (amount?: string) => {
     if (!address || !isConnected) {
       setStatus('❌ Connect wallet first')
+      return false
+    }
+
+    if (!amount || parseFloat(amount) <= 0) {
+      setStatus('❌ Invalid amount')
       return false
     }
 
     try {
       setStatus('⏳ Approving tokens...')
       
+      // Validate amount is a number
+      const amountNum = parseFloat(amount)
+      if (isNaN(amountNum) || amountNum <= 0) {
+        setStatus('❌ Invalid amount')
+        return false
+      }
+      
       // If no amount specified, approve max uint256
       const amountToApprove = amount 
-        ? parseEther(amount)
-        : BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
+        ? parseEther(amountNum.toString())
+        : BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
 
-      writeContract({
+      const result = await writeContractAsync({
         address: FaucetTokenAddress,
         abi: FaucetTokenABI,
         functionName: 'approve',
-        args: [spenderAddress, amountToApprove]
+        args: [TreasuryAddress, amountToApprove]
       })
       
-      return true
+      setStatus('✅ Approval submitted! Waiting for confirmation...')
+      
+      // Wait for transaction receipt
+      const receipt = await waitForTransactionReceipt(config, { hash: result.hash as `0x${string}` })
+      
+      console.log('Transaction receipt:', receipt)
+      
+      if (receipt && receipt.status === 'success') {
+        setStatus('✅ Tokens approved successfully!')
+        return true
+      } else {
+        setStatus('❌ Approval failed')
+        console.error('Receipt status:', receipt?.status)
+        return false
+      }
     } catch (error) {
       console.error('Approve error:', error)
       setStatus('❌ Failed to approve tokens')
@@ -185,23 +206,20 @@ export function useFaucet() {
   useEffect(() => {
     if (isWritePending) {
       setStatus('⏳ Waiting for confirmation...')
-    } else if (isTxLoading) {
-      setStatus('⏳ Processing transaction...')
-    } else if (isTxSuccess) {
-      setStatus('✅ Transaction successful!')
-      
-      // Refetch balance after successful transaction
-      refetchBalance()
-      
-      // Clear status and reset after delay
+    } else {
+      setStatus('')
+    }
+
+    // Auto-clear status after success
+    if (hash) {
       const timer = setTimeout(() => {
         setStatus('')
         resetWrite()
       }, 3000)
-      
+
       return () => clearTimeout(timer)
     }
-  }, [isWritePending, isTxLoading, isTxSuccess, refetchBalance, resetWrite])
+  }, [isWritePending, hash, resetWrite])
 
   return {
     // Data
@@ -217,7 +235,7 @@ export function useFaucet() {
 
     // Loading states
     isLoading: isBalanceLoading,
-    isTransactionPending: isWritePending || isTxLoading,
+    isTransactionPending: isWritePending,
 
     // Actions
     claimTokens,

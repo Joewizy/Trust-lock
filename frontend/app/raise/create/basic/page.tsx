@@ -31,7 +31,7 @@ const DESCRIPTION_MAX_LENGTH = 1000;
 
 const tokenOptions = [
   { id: 'eth', label: 'ETH' },
-  { id: 'faucet', label: 'Faucet ERC' },
+  { id: 'tlt', label: 'TLT' },
 ] as const;
 
 export default function CreateRaiseBasic() {
@@ -44,7 +44,8 @@ export default function CreateRaiseBasic() {
   const [description, setDescription] = React.useState('');
   const [fundingGoal, setFundingGoal] = React.useState('');
   const [durationDays, setDurationDays] = React.useState('');
-  const [selectedToken, setSelectedToken] = React.useState<'eth' | 'faucet'>('eth');
+  const [durationUnit, setDurationUnit] = React.useState<'days' | 'seconds'>('days');
+  const [selectedToken, setSelectedToken] = React.useState<'eth' | 'tlt'>('eth');
   const [showModal, setShowModal] = React.useState(false);
   const [error, setError] = React.useState('');
 
@@ -55,7 +56,7 @@ export default function CreateRaiseBasic() {
     setDescription(draft.description ?? '');
     setFundingGoal(draft.fundingGoal ? String(draft.fundingGoal) : '');
     setDurationDays(draft.durationDays ? String(draft.durationDays) : '');
-    setSelectedToken((draft.acceptedToken as 'eth' | 'faucet') ?? 'eth');
+    setSelectedToken((draft.acceptedToken === 'faucet' ? 'tlt' : draft.acceptedToken as 'eth' | 'tlt') ?? 'eth');
   }, []);
 
   React.useEffect(() => {
@@ -65,7 +66,7 @@ export default function CreateRaiseBasic() {
       fundingGoal: fundingGoal ? Number(fundingGoal) : 0,
       durationDays: durationDays ? Number(durationDays) : 0,
       acceptsEth: selectedToken === 'eth',
-      acceptedToken: selectedToken,
+      acceptedToken: selectedToken === 'tlt' ? 'faucet' : selectedToken,
       creator: address ?? '0x0000000000000000000000000000000000000000',
     });
   }, [title, description, fundingGoal, durationDays, selectedToken, address]);
@@ -123,7 +124,9 @@ export default function CreateRaiseBasic() {
         title,
         description,
         fundingGoal,
-        projectDuration: Math.ceil(Number(durationDays) / 7),
+        projectDuration: durationUnit === 'seconds' 
+          ? Number(durationDays) // Already in seconds
+          : Number(durationDays) * 24 * 60 * 60, // Convert days to seconds
         acceptsEth: selectedToken === 'eth'
       });
 
@@ -153,7 +156,7 @@ export default function CreateRaiseBasic() {
         );
         clearDraft();
         setShowModal(false);
-        setTimeout(() => router.push('/raises'), 4500);
+        setTimeout(() => router.push('/activity'), 4500);
       }
     } catch (err) {
       console.error('Failed to create raise:', err);
@@ -282,48 +285,84 @@ export default function CreateRaiseBasic() {
             
             <div className='grid gap-4 sm:grid-cols-2'>
               <div className='space-y-2'>
-                <Label>Total funding target (ETH)</Label>
+                <div className='flex items-center justify-between'>
+                  <Label>Total funding target ({selectedToken === 'eth' ? 'ETH' : 'USD'})</Label>
+                  <div className='flex items-center gap-1'>
+                    <Button
+                      type='button'
+                      variant={selectedToken === 'eth' ? 'default' : 'outline'}
+                      size='sm'
+                      onClick={() => setSelectedToken('eth')}
+                      disabled={!hasENS}
+                    >
+                      ETH
+                    </Button>
+                    <Button
+                      type='button'
+                      variant={selectedToken === 'tlt' ? 'default' : 'outline'}
+                      size='sm'
+                      onClick={() => setSelectedToken('tlt')}
+                      disabled={!hasENS}
+                    >
+                      TLT
+                    </Button>
+                  </div>
+                </div>
                 <Input
                   type='number'
                   min={0}
                   step="0.01"
-                  placeholder='10'
+                  placeholder={selectedToken === 'eth' ? '10' : '25000'}
                   value={fundingGoal}
                   onChange={(event) => setFundingGoal(event.target.value)}
                   disabled={!hasENS}
                 />
+                <p className='text-xs text-muted-foreground'>
+                  {selectedToken === 'eth' 
+                    ? 'Amount in ETH tokens'
+                    : 'Amount in USD (1 TLT = 1 USD)'
+                  }
+                </p>
               </div>
               <div className='space-y-2'>
-                <Label>Raise duration (days)</Label>
+                <div className='flex items-center justify-between'>
+                  <Label>Raise duration</Label>
+                  <div className='flex items-center gap-1'>
+                    <Button
+                      type='button'
+                      variant={durationUnit === 'days' ? 'default' : 'outline'}
+                      size='sm'
+                      onClick={() => setDurationUnit('days')}
+                      disabled={!hasENS}
+                    >
+                      Days
+                    </Button>
+                    <Button
+                      type='button'
+                      variant={durationUnit === 'seconds' ? 'default' : 'outline'}
+                      size='sm'
+                      onClick={() => setDurationUnit('seconds')}
+                      disabled={!hasENS}
+                    >
+                      Seconds
+                    </Button>
+                  </div>
+                </div>
                 <Input
                   type='number'
                   min={1}
-                  placeholder='30'
+                  placeholder={durationUnit === 'days' ? '30' : '2592000'}
                   value={durationDays}
                   onChange={(event) => setDurationDays(event.target.value)}
                   disabled={!hasENS}
                 />
+                <p className='text-xs text-muted-foreground'>
+                  {durationUnit === 'days' 
+                    ? 'Duration in days (e.g., 30 = 30 days)'
+                    : 'Duration in seconds (e.g., 2592000 = 30 days)'
+                  }
+                </p>
               </div>
-            </div>
-            
-            <div className='space-y-2'>
-              <Label>Accept funding in</Label>
-              <div className='flex flex-wrap gap-2'>
-                {tokenOptions.map((token) => (
-                  <Button
-                    key={token.id}
-                    type='button'
-                    variant={selectedToken === token.id ? 'default' : 'outline'}
-                    onClick={() => setSelectedToken(token.id)}
-                    disabled={!hasENS}
-                  >
-                    {token.label}
-                  </Button>
-                ))}
-              </div>
-              <p className='text-xs text-muted-foreground'>
-                Choose your preferred token for contributions
-              </p>
             </div>
             
             <div className='flex items-center justify-end gap-3 pt-4 border-t'>
